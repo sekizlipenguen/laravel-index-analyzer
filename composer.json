@@ -1,0 +1,28 @@
+{
+  "name": "sekizlipenguen/laravel-index-analyzer",
+  "description": "Laravel command to detect and apply missing database indexes",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Sekizli Penguen"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "SekizliPenguen\\IndexAnalyzer\\": "src/"
+    }
+  },
+  "require": {
+    "php": "^8.0",
+    "illuminate/support": "^9.0|^10.0|^11.0",
+    "illuminate/console": "^9.0|^10.0|^11.0"
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "SekizliPenguen\\IndexAnalyzer\\IndexAnalyzerServiceProvider"
+      ]
+    }
+  }
+}
