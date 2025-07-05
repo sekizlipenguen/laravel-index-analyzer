@@ -21,7 +21,7 @@ composer require sekizlipenguen/laravel-index-analyzer
 Config dosyasını yayınlamak için:
 
 ```bash
-php artisan vendor:publish --provider="SekizliPenguen\LaravelIndexAnalyzer\LaravelIndexAnalyzerServiceProvider"
+php artisan vendor:publish --provider="SekizliPenguen\IndexAnalyzer\IndexAnalyzerServiceProvider"
 ```
 
 ## Kullanım
