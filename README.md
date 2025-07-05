@@ -106,6 +106,14 @@ return [
 5. Optimizasyon: Gerekli indeksleri önerir veya uygular
 6. Sonuçları ekranda gösterir veya SQL dosyasına aktarır
 
+### Sorun Giderme
+
+Analizde sık karşılaşılan sorunlar:
+
+- **Sınıf Bulunamadı Hataları**: Karmaşık sorgu yapıları veya trait kullanan modeller için, sorgu simülasyon dosyalarında ilgili sınıflar import edilmeyebilir. Bu durumda `--verbose` parametresi ile çalıştırarak detaylı hata mesajlarını görebilirsiniz.
+- **Eksik Tablolar**: Modellerin karşılık geldiği tablolar veritabanında yoksa uyarı alabilirsiniz.
+- **Özel Sorgu Yapıları**: Makroları veya özel geliştirilmiş sorgu genişletmelerini kullanan sorgular düzgün simüle edilemeyebilir.
+
 ## Katkıda Bulunma
 
 Katkılarınızı memnuniyetle karşılıyoruz! Lütfen bir pull request göndermeden önce test etmeyi unutmayın.

@@ -120,9 +120,48 @@ class DetectMissingIndexes extends Command
         $errorCount = 0;
         $uniqueQueries = [];
 
-        foreach ($queries as $query) {
+        foreach ($queries as $index => $query) {
             $filename = $outputPath . '/query_' . str_pad($counter, 3, '0', STR_PAD_LEFT) . '_' . substr(md5($query), 0, 6) . '.php';
-            $script = "<?php\n\nuse Illuminate\\Support\\Facades\\DB;\n\n// 💡 Otomatik tespit edilen sorgu bloğu:\n\nreturn DB::pretend(function () {\n    {$query}\n});\n";
+
+            // Temel importları daima ekle
+            $imports = ['Illuminate\\Support\\Facades\\DB'];
+            $imports = ['Illuminate\\Support\\Facades\\DB'];
+
+            // Trait kullanımlarını tespit et
+            preg_match_all('/use\s+([\w\\]+)(?:\s*;|\s+(?:in))/i', $query, $traitMatches);
+            if (!empty($traitMatches[1])) {
+                foreach ($traitMatches[1] as $trait) {
+                    $imports[] = $trait;
+                }
+            }
+
+            // Namespace'leri tespit et
+            preg_match_all('/new\s+([\\\w]+)/i', $query, $classMatches);
+            if (!empty($classMatches[1])) {
+                foreach ($classMatches[1] as $class) {
+                    if (str_contains($class, '\\')) {
+                        $imports[] = $class;
+                    }
+                }
+            }
+
+            // StaticCall sınıflarını tespit et (\Sınıf::metod() şeklinde olanlar)
+            preg_match_all('/([\\\w]+)::/i', $query, $staticMatches);
+            if (!empty($staticMatches[1])) {
+                foreach ($staticMatches[1] as $static) {
+                    if ($static !== 'self' && $static !== 'static' && $static !== 'parent' && !str_starts_with($static, '$')) {
+                        $imports[] = $static;
+                    }
+                }
+            }
+
+            // Import satırlarını oluştur
+            $importLines = [];
+            foreach (array_unique($imports) as $import) {
+                $importLines[] = "use {$import};";
+            }
+
+            $script = "<?php\n\n" . implode("\n", $importLines) . "\n\n// 💡 Otomatik tespit edilen sorgu bloğu:\n\nreturn DB::pretend(function () {\n    {$query}\n});\n";
             File::put($filename, $script);
             // Immediately execute and collect SQL queries
             try {
@@ -155,7 +194,12 @@ class DetectMissingIndexes extends Command
                 // Optionally log or ignore errors
                 $errorCount++;
                 if ($this->option('verbose')) {
-                    $this->warn("⚠️ Sorgu simülasyonu hatası: " . $e->getMessage());
+                    $this->warn("⚠️ Sorgu simülasyonu hatası (" . basename($filename) . "): " . $e->getMessage());
+                    // Özel hata yönetimi - sınıf veya trait bulunamadığında
+                    if (str_contains($e->getMessage(), 'Class') && str_contains($e->getMessage(), 'not found')) {
+                        $this->warn("   💡 İpucu: Bu sorgu için gerekli bir sınıf veya trait bulunamadı.");
+                        $this->warn("   Sorgu: " . Str::limit($query, 100));
+                    }
                 }
             }
             $counter++;
@@ -493,10 +537,45 @@ class DetectMissingIndexes extends Command
         return array_values($compositeIndexes);
     }
 
+    /**
+     * Sorgu içindeki use ifadelerini ve import gereksinimlerini analiz eder
+     *
+     * @param string $content Dosya içeriği
+     * @return array Tespit edilen importlar
+     */
+    protected function analyzeUseStatements(string $content): array
+    {
+        $imports = [];
+
+        // Namespace'leri bul
+        preg_match('/namespace\s+([^;]+);/i', $content, $nsMatch);
+        $namespace = $nsMatch[1] ?? null;
+
+        // use ifadelerini bul
+        preg_match_all('/^use\s+([^;]+);/m', $content, $matches);
+
+        if (!empty($matches[1])) {
+            foreach ($matches[1] as $match) {
+                // as ifadeleri
+                if (str_contains($match, ' as ')) {
+                    list($class, $alias) = explode(' as ', $match);
+                    $imports[$alias] = trim($class);
+                } else {
+                    $parts = explode('\\', $match);
+                    $className = end($parts);
+                    $imports[$className] = trim($match);
+                }
+            }
+        }
+
+        return $imports;
+    }
+
     protected function extractQueryChains($phpFiles): array
     {
         $parser = (new ParserFactory)->createForNewestSupportedVersion();
         $queries = [];
+        $querySources = []; // Sorguların kaynak dosyalarını takip et
         $pretty = new Standard();
         $modelPaths = config('index-analyzer.model_paths', ['app/Models']);
 
@@ -555,7 +634,11 @@ class DetectMissingIndexes extends Command
                                     $className = $node->var->class->toString();
                                     if ($this->isModelClass($className) && in_array($node->var->name->name, ['query', 'select', 'with'])) {
                                         $fullChain = $this->pretty->prettyPrint([$node]) . ";";
+                                        $queryIndex = count($this->queries);
                                         $this->queries[] = $fullChain;
+                                        // Kaynak dosyayı sakla
+                                        global $querySources;
+                                        $querySources[$queryIndex] = $file->getRealPath();
                                     }
                                 } else if ($node->var instanceof Node\Expr\MethodCall) {
                                     // Daha derin bir sorgu zinciri olabilir
