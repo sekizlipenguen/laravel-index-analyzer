@@ -109,7 +109,7 @@ class IndexAnalyzerController extends Controller
      */
     public function clearQueries(Request $request)
     {
-        app('index-analyzer')->queryLogger->clearQueries();
+        app('index-analyzer')->getQueryLogger()->clearQueries();
 
         return response()->json([
             'success' => true,

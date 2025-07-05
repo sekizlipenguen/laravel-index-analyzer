@@ -72,7 +72,7 @@ class IndexAnalyzerServiceProvider extends ServiceProvider
     {
         if (!$this->app->runningInConsole() && $this->isEnabled()) {
             $this->app->make('Illuminate\Contracts\Http\Kernel')
-                ->pushMiddleware('SekizliPenguen\LaravelIndexAnalyzer\Http\Middleware\InjectDebugBarMiddleware');
+                ->pushMiddleware('SekizliPenguen\IndexAnalyzer\Http\Middleware\InjectDebugBarMiddleware');
         }
     }
 }

@@ -105,4 +105,14 @@ class IndexAnalyzer
 
         return "ALTER TABLE `{$table}` ADD INDEX `{$indexName}` ({$columnList});";
     }
+
+    /**
+     * Get the query logger instance.
+     *
+     * @return \SekizliPenguen\IndexAnalyzer\Services\QueryLogger
+     */
+    public function getQueryLogger()
+    {
+        return $this->queryLogger;
+    }
 }
