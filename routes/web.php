@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use SekizliPenguen\IndexAnalyzer\Http\Controllers\DashboardController;
 use SekizliPenguen\IndexAnalyzer\Http\Controllers\IndexAnalyzerController;
 
 $routePrefix = config('index-analyzer.route_prefix', 'index-analyzer');
@@ -10,6 +11,11 @@ Route::group([
     'prefix' => $routePrefix,
     'middleware' => $middleware,
 ], function () {
+    // Ana kontrol paneli sayfası
+    Route::get('/', [DashboardController::class, 'index'])
+        ->name('index-analyzer.dashboard');
+
+    // API endpoint'leri
     Route::post('/start-crawl', [IndexAnalyzerController::class, 'startCrawl'])
         ->name('index-analyzer.start-crawl');
 

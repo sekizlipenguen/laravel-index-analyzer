@@ -154,10 +154,27 @@ class QueryLogger
      */
     protected function storeToFile(array $queryData)
     {
-        $logPath = config('index-analyzer.log_path');
-        $jsonData = json_encode($queryData) . PHP_EOL;
+        $logPath = config('index-analyzer.log_path', storage_path('logs/index-analyzer.log'));
 
-        File::append($logPath, $jsonData);
+        if (empty($logPath)) {
+            return;
+        }
+
+        try {
+            // Dizin kontrolü yap ve dizin yoksa oluştur
+            $directory = dirname($logPath);
+            if (!File::exists($directory)) {
+                File::makeDirectory($directory, 0755, true);
+            }
+
+            // JSON verisini oluştur
+            $jsonData = json_encode($queryData) . PHP_EOL;
+
+            // Dosyaya ekle
+            File::append($logPath, $jsonData);
+        } catch (\Exception $e) {
+            // Hata durumunda sessizce devam et
+        }
     }
 
     /**
@@ -182,17 +199,26 @@ class QueryLogger
      */
     protected function loadQueriesFromFile()
     {
-        $logPath = config('index-analyzer.log_path');
+        $logPath = config('index-analyzer.log_path', storage_path('logs/index-analyzer.log'));
 
-        if (!File::exists($logPath)) {
+        if (empty($logPath) || !File::exists($logPath)) {
             return [];
         }
 
         $queries = [];
-        $lines = file($logPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
-        foreach ($lines as $line) {
-            $queries[] = json_decode($line, true);
+        try {
+            $lines = file($logPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
+            foreach ($lines as $line) {
+                $decoded = json_decode($line, true);
+                if ($decoded) {
+                    $queries[] = $decoded;
+                }
+            }
+        } catch (\Exception $e) {
+            // Dosya okuma hatası durumunda boş dizi döndür
+            return [];
         }
 
         return $queries;

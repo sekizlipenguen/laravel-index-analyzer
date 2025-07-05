@@ -71,8 +71,13 @@ class IndexAnalyzerServiceProvider extends ServiceProvider
     protected function injectAssets()
     {
         if (!$this->app->runningInConsole() && $this->isEnabled()) {
+            // DebugBar middleware'ini ekle
             $this->app->make('Illuminate\Contracts\Http\Kernel')
                 ->pushMiddleware('SekizliPenguen\IndexAnalyzer\Http\Middleware\InjectDebugBarMiddleware');
+
+            // Sorgu yakalama middleware'ini ekle
+            $this->app->make('Illuminate\Contracts\Http\Kernel')
+                ->pushMiddleware('SekizliPenguen\IndexAnalyzer\Http\Middleware\CaptureQueriesMiddleware');
         }
     }
 }

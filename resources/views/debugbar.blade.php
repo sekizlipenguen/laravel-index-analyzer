@@ -271,7 +271,7 @@
           const data = await response.json();
 
           if (data.success) {
-            statusElement.textContent = 'İndeks önerileri oluşturuldu';
+            statusElement.textContent = data.message || 'İndeks önerileri oluşturuldu';
 
             if (data.statements.length > 0) {
               const statementsText = data.statements.join('\n');
@@ -292,9 +292,25 @@
               });
               resultsElement.appendChild(document.createElement('br'));
               resultsElement.appendChild(copyBtn);
+
+              // Debug bilgisi ekle
+              if (data.debug && data.debug.query_count) {
+                const debugInfo = document.createElement('div');
+                debugInfo.className = 'ia-debug-info';
+                debugInfo.innerHTML = `<br><small>Analiz edilen sorgu sayısı: ${data.debug.query_count}</small>`;
+                resultsElement.appendChild(debugInfo);
+              }
             } else {
-              resultsElement.textContent = 'Önerilen indeks bulunamadı.';
+              resultsElement.textContent = 'Önerilen indeks bulunamadı.' + (data.message ? ' ' + data.message : '');
               resultsElement.style.display = 'block';
+
+              // Debug bilgisi ekle
+              if (data.debug) {
+                const debugInfo = document.createElement('div');
+                debugInfo.className = 'ia-debug-info';
+                debugInfo.innerHTML = `<br><small>Analiz edilen sorgu sayısı: ${data.debug.query_count || 0}</small>`;
+                resultsElement.appendChild(debugInfo);
+              }
             }
           } else {
             statusElement.textContent = 'Hata: ' + (data.message || 'Bilinmeyen hata');
@@ -346,6 +362,9 @@
       let activeRequests = 0;
       let index = 0;
 
+      // CSRF token alma
+      const csrfToken = getCSRFToken();
+
       return new Promise((resolve) => {
         function updateProgress() {
           const percentage = (completed / totalRoutes) * 100;
@@ -365,30 +384,11 @@
           activeRequests++;
 
           try {
-            // Create a hidden iframe to load the page
-            const iframe = document.createElement('iframe');
-            iframe.style.position = 'absolute';
-            iframe.style.left = '-9999px';
-            iframe.style.width = '1px';
-            iframe.style.height = '1px';
-            document.body.appendChild(iframe);
+            // Yeni bir yaklaşım dene - önce sayfayı GET ile ziyaret et, sonra iframede aç
+            await visitPageAndLoadInIframe(route);
 
-            const loadPromise = new Promise((resolveLoad) => {
-              iframe.addEventListener('load', resolveLoad);
-              iframe.addEventListener('error', resolveLoad);
-            });
-
-            iframe.src = route;
-
-            // Wait for page to load with timeout
-            const timeoutPromise = new Promise((resolveTimeout) => {
-              setTimeout(resolveTimeout, 10000); // 10 seconds timeout
-            });
-
-            await Promise.race([loadPromise, timeoutPromise]);
-
-            // Clean up
-            document.body.removeChild(iframe);
+            // Her sayfadan sonra 1 saniye bekle - bu, istek yoğunluğunu azaltır
+            await new Promise(r => setTimeout(r, 1000));
           } catch (error) {
             console.error(`Error crawling ${route}:`, error);
           }
@@ -399,6 +399,81 @@
 
           // Start next route
           processRoute();
+        }
+
+        // Sayfayı hem doğrudan ziyaret et hem de iframe içinde yükle
+        async function visitPageAndLoadInIframe(route) {
+          // İlk olarak doğrudan bir fetch isteği gönder - bu sorguları kaydedecek
+          try {
+            const fetchOptions = {
+              method: 'GET',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html',
+                'X-CSRF-TOKEN': csrfToken,
+              },
+              credentials: 'same-origin',
+            };
+
+            // Fetch çağrısı
+            await fetch(route, fetchOptions).catch(e => console.log('Fetch request for', route, 'failed:', e));
+          } catch (fetchError) {
+            console.log('Fetch error:', fetchError);
+            // Fetch hatası olsa bile devam et
+          }
+
+          // Şimdi iframe içinde yükle
+          return new Promise((resolveIframeLoad) => {
+            // Create a hidden iframe to load the page
+            const iframe = document.createElement('iframe');
+            iframe.style.position = 'absolute';
+            iframe.style.left = '-9999px';
+            iframe.style.width = '500px'; // Daha geniş - JavaScript'in çalışması için
+            iframe.style.height = '500px';
+            document.body.appendChild(iframe);
+
+            let iframeLoaded = false;
+
+            // Iframe yükleme olayını dinle
+            iframe.addEventListener('load', () => {
+              iframeLoaded = true;
+
+              // Iframe içindeki JavaScript'in çalışması için biraz zaman ver
+              setTimeout(() => {
+                try {
+                  document.body.removeChild(iframe);
+                } catch (e) {
+                  // İframe kaldırılırken hata oluşursa yoksay
+                }
+                resolveIframeLoad();
+              }, 3000); // JavaScript'in çalışması için 3 saniye bekle
+            });
+
+            // Hata durumunda da devam et
+            iframe.addEventListener('error', () => {
+              try {
+                document.body.removeChild(iframe);
+              } catch (e) {
+                // İframe kaldırılırken hata oluşursa yoksay
+              }
+              resolveIframeLoad();
+            });
+
+            // Zaman aşımı güvenliği
+            setTimeout(() => {
+              if (!iframeLoaded) {
+                try {
+                  document.body.removeChild(iframe);
+                } catch (e) {
+                  // İframe kaldırılırken hata oluşursa yoksay
+                }
+                resolveIframeLoad();
+              }
+            }, 15000); // 15 saniye maksimum bekleme
+
+            // Iframe'e sayfayı yükle
+            iframe.src = route;
+          });
         }
 
         updateProgress();

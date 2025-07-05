@@ -32,11 +32,18 @@ php artisan vendor:publish --provider="SekizliPenguen\IndexAnalyzer\IndexAnalyze
 INDEX_ANALYZER_ENABLED=true
 ```
 
-2. Uygulamanızda debugbar'ı görmek için sadece geliştirme ortamında kullanmanız önerilir.
+2. Uygulamanızda geliştirme ortamında kullanmanız önerilir.
 
-3. Tarayıcıda sayfalarınızı ziyaret ederken debugbar'ı kullanarak:
+3. İki kullanım seçeneği vardır:
+
+   **A. DebugBar ile kullanım:**
+   - Tarayıcıda sayfalarınızı ziyaret ederken ekranın altında görünen debugbar'ı kullanın
    - "Tarama Başlat" butonu ile otomatik taramayı başlatın
    - "İndexleri Çıkar" butonu ile önerileri görüntüleyin
+
+   **B. Kontrol Paneli ile kullanım:**
+   - `/index-analyzer` adresine giderek kontrol paneline erişin
+   - Buradan tarama başlatabilir ve indeks önerilerini görüntüleyebilirsiniz
 
 ## Yapılandırma
 

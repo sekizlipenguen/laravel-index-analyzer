@@ -92,7 +92,6 @@ class IndexAnalyzer
     public function generateSuggestions()
     {
         $queries = $this->queryLogger->getQueries();
-        dd($queries);
         return $this->queryAnalyzer->analyze($queries);
     }
 

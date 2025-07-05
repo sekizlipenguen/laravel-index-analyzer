@@ -83,6 +83,20 @@ class IndexAnalyzerController extends Controller
         // Tüm sorguları al
         $queries = app('index-analyzer')->getQueryLogger()->getQueries();
 
+        // Eğer hiç sorgu yoksa bilgi mesajı döndür
+        if (empty($queries)) {
+            return response()->json([
+                'success' => true,
+                'suggestions' => [],
+                'statements' => [],
+                'message' => 'Hiç sorgu kaydedilmemiş. Lütfen önce tarama yapın.',
+                'debug' => [
+                    'query_count' => 0,
+                    'queries' => []
+                ]
+            ]);
+        }
+
         $suggestions = IndexAnalyzer::generateSuggestions();
         $statements = IndexAnalyzer::generateIndexStatements();
 

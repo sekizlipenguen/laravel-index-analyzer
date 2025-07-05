@@ -46,6 +46,11 @@ class QueryAnalyzer
         $minQueryTime = config('index-analyzer.suggestions.min_query_time', 0); // 0'a düşürüldü
         $minQueryCount = config('index-analyzer.suggestions.min_query_count', 1); // 1'e düşürüldü
 
+        // Boş sorgu kontrolü
+        if (empty($queries)) {
+            return [];
+        }
+
         // Group queries by table and conditions
         $groupedQueries = [];
 
