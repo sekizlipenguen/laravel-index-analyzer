@@ -16,7 +16,7 @@ class InjectDebugBarMiddleware
      * @param \Closure $next
      * @return mixed
      */
-    public function handle($request, Closure $next)
+    public function handle(Request $request, Closure $next): mixed
     {
         $response = $next($request);
 
@@ -65,7 +65,7 @@ class InjectDebugBarMiddleware
      * @param \Illuminate\Http\Response $response
      * @return void
      */
-    protected function injectDebugBar($response)
+    protected function injectDebugBar(Response $response): void
     {
         $content = $response->getContent();
 

@@ -342,7 +342,7 @@
     async function crawlRoutes(routes, progressBar, statusElement) {
       const totalRoutes = routes.length;
       let completed = 0;
-      const concurrentRequests = 3; // Aynı anda kaç istek yapılacak
+      const concurrentRequests = 1; // Aynı anda kaç istek yapılacak
       let activeRequests = 0;
       let index = 0;
 

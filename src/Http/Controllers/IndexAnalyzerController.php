@@ -36,21 +36,33 @@ class IndexAnalyzerController extends Controller
     {
         $routes = [];
 
+        // Yalnızca index-analyzer rotalarını filtrelemek için kullanılacak önekler
+        $skipPrefixes = [
+            '_debugbar',
+            '_ignition',
+            'livewire',
+            config('index-analyzer.route_prefix', 'index-analyzer')
+        ];
+
         foreach (app('router')->getRoutes() as $route) {
             $methods = $route->methods();
+            $uri = $route->uri();
 
-            // Only GET routes are crawlable
+            // Eğer GET metodu yoksa, route'u atla
             if (!in_array('GET', $methods)) {
                 continue;
             }
 
-            $uri = $route->uri();
+            // Sadece index-analyzer ile ilgili rotaları atla
+            $skip = false;
+            foreach ($skipPrefixes as $prefix) {
+                if (strpos($uri, $prefix) === 0) {
+                    $skip = true;
+                    break;
+                }
+            }
 
-            // Skip routes that aren't web pages
-            if (strpos($uri, 'api/') === 0 ||
-                strpos($uri, '_debugbar') === 0 ||
-                strpos($uri, '_ignition') === 0 ||
-                strpos($uri, config('index-analyzer.route_prefix', 'index-analyzer')) === 0) {
+            if ($skip) {
                 continue;
             }
 
