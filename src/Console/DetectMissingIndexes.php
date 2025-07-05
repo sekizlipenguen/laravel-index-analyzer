@@ -13,7 +13,9 @@ use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\NodeVisitorAbstract;
 use PhpParser\ParserFactory;
 use PhpParser\PrettyPrinter\Standard;
+use SekizliPenguen\IndexAnalyzer\Helpers\FileValidator;
 use SekizliPenguen\IndexAnalyzer\Helpers\ImportAnalyzer;
+use SekizliPenguen\IndexAnalyzer\Helpers\QuerySanitizer;
 use Throwable;
 
 class DetectMissingIndexes extends Command
@@ -126,6 +128,7 @@ class DetectMissingIndexes extends Command
             $filename = $outputPath . '/query_' . str_pad($counter, 3, '0', STR_PAD_LEFT) . '_' . substr(md5($query), 0, 6) . '.php';
 
             // Temel importları daima ekle
+            $imports = ['Illuminate\\Support\\Facades\\DB'];
 
             // Kaynak dosyadan importları analiz et
             if (isset($querySources[$index])) {
@@ -165,10 +168,20 @@ class DetectMissingIndexes extends Command
                 }
             }
 
-            // Trait kullanımlarını tespit et
+            // Trait kullanımlarını tespit et - hem normal hem anonim sınıflardaki trait'ler
             preg_match_all('/use\s+([\w\\]+)(?:\s*;|\s+(?:in))/i', $query, $traitMatches);
+            preg_match_all('/\(new\s+class[^{]*{[^}]*use\s+([\w\\]+);/is', $query, $anonTraitMatches);
+
+            // Normal trait kullanımları
             if (!empty($traitMatches[1])) {
                 foreach ($traitMatches[1] as $trait) {
+                    $imports[] = $trait;
+                }
+            }
+
+            // Anonim sınıf içinde trait kullanımları
+            if (!empty($anonTraitMatches[1])) {
+                foreach ($anonTraitMatches[1] as $trait) {
                     $imports[] = $trait;
                 }
             }
@@ -195,14 +208,47 @@ class DetectMissingIndexes extends Command
 
             // Import satırlarını oluştur
             $importLines = [];
-            foreach (array_unique($imports) as $import) {
-                $importLines[] = "use {$import};";
+            if (is_array($imports)) {
+                foreach (array_unique($imports) as $import) {
+                    if (is_string($import) && trim($import) !== '') {
+                        $importLines[] = "use {$import};";
+                    }
+                }
             }
 
-            $script = "<?php\n\n" . implode("\n", $importLines) . "\n\n// 💡 Otomatik tespit edilen sorgu bloğu:\n\nreturn DB::pretend(function () {\n    {$query}\n});\n";
+            // Sorgu dosyasını oluştur
+            $script = "<?php\n\n";
+
+            // İmport satırlarını ekle
+            if (!empty($importLines)) {
+                $script .= implode("\n", $importLines);
+            } else {
+                // En azından DB facade'ini ekle
+                $script .= "use Illuminate\\Support\\Facades\\DB;";
+            }
+
+            // Sorguları temizle ve güvenli hale getir
+            $safeQuery = QuerySanitizer::sanitize($query);
+
+            // Çalıştırılabilir sorgu oluştur - anonim sınıf içeren sorguları özel işleme
+            $executableQuery = $this->createExecutableQuery($safeQuery, $imports);
+
+            $script .= "\n\n// 💡 Otomatik tespit edilen sorgu bloğu:\n\nreturn DB::pretend(function () {\n    {$executableQuery}\n});\n";
             File::put($filename, $script);
             // Immediately execute and collect SQL queries
             try {
+                // Sorgu dosyasını kontrol et
+                if (!file_exists($filename)) {
+                    throw new \Exception("Sorgu dosyası oluşturulamadı: {$filename}");
+                }
+
+                // Yedek plan: Eğer anonim sınıf trait'i içeriyorsa ve hata alınabilecekse, önceden kaydedelim
+                if (strpos($query, 'new class') !== false && strpos($query, 'use ') !== false) {
+                    // Yedek dosyayı kaydet
+                    File::put($filename . '.original', $script);
+                }
+
+                // Dosyayı güvenli şekilde dahil et
                 $result = @include $filename;
                 if (is_array($result)) {
                     $content = '';
@@ -229,14 +275,52 @@ class DetectMissingIndexes extends Command
                     }
                 }
             } catch (Throwable $e) {
-                // Optionally log or ignore errors
+                // Hata durumunda
                 $errorCount++;
-                if ($this->option('verbose')) {
-                    $this->warn("⚠️ Sorgu simülasyonu hatası (" . basename($filename) . "): " . $e->getMessage());
-                    // Özel hata yönetimi - sınıf veya trait bulunamadığında
-                    if (str_contains($e->getMessage(), 'Class') && str_contains($e->getMessage(), 'not found')) {
-                        $this->warn("   💡 İpucu: Bu sorgu için gerekli bir sınıf veya trait bulunamadı.");
+
+                // Trait veya class bulunamadı hataları için özel işlem
+                if (str_contains($e->getMessage(), 'Trait') || str_contains($e->getMessage(), 'Class')) {
+                    // Sorgu içinde geçen sınıf ve trait'leri çıkaralım
+                    preg_match_all('/use\s+([\w\\]+);/i', $query, $traitMatches);
+                    preg_match_all('/new\s+([\w\\]+)/i', $query, $classMatches);
+                    preg_match_all('/([\w\\]+)::/i', $query, $staticMatches);
+
+                    // Hata mesajını anlamlandır
+                    $missingEntity = null;
+                    if (preg_match('/Trait "([^"]+)" not found/', $e->getMessage(), $entityMatches)) {
+                        $missingEntity = $entityMatches[1];
+                    } elseif (preg_match('/Class "([^"]+)" not found/', $e->getMessage(), $entityMatches)) {
+                        $missingEntity = $entityMatches[1];
+                    }
+
+                    // Sorguyu atla, ama dosyayı kaydet
+                    $loggedQuery = str_replace($query, "// DEVRE DIŞI: {$e->getMessage()}\n// {$query}", $script);
+                    File::put($filename . '.disabled', $loggedQuery);
+
+                    // Verbose modundaysa detayları göster
+                    if ($this->option('verbose') || true) { // Geçici olarak tüm hataları göster
+                        $this->warn("⚠️ Sorgu simülasyonu hatası (" . basename($filename) . "): " . $e->getMessage());
+                        $this->warn("   💡 İpucu: Bu sorgu için gerekli bir trait veya sınıf bulunamadı: " . ($missingEntity ?? 'Bilinmiyor'));
                         $this->warn("   Sorgu: " . Str::limit($query, 100));
+
+                        // Tespit edilen trait'leri göster
+                        if (!empty($traitMatches[1])) {
+                            $this->warn("   Tespit edilen trait kullanımları: " . implode(", ", $traitMatches[1]));
+                        }
+
+                        // Tespit edilen sınıfları göster
+                        $allClasses = array_merge(
+                            $classMatches[1] ?? [],
+                            $staticMatches[1] ?? []
+                        );
+                        if (!empty($allClasses)) {
+                            $this->warn("   Tespit edilen sınıf kullanımları: " . implode(", ", $allClasses));
+                        }
+                    }
+                } else {
+                    // Diğer hatalar için standart log
+                    if ($this->option('verbose')) {
+                        $this->warn("⚠️ Sorgu simülasyonu hatası (" . basename($filename) . "): " . $e->getMessage());
                     }
                 }
             }
@@ -645,6 +729,68 @@ class DetectMissingIndexes extends Command
         return $imports;
     }
 
+    /**
+     * Belirli bir trait'in varlığını kontrol eden metod
+     *
+     * @param string $traitName Trait adı
+     * @return bool Trait bulundu mu
+     */
+    protected function checkTraitExists(string $traitName): bool
+    {
+        // Base namespace'ler - yaygın Laravel ve kendi projeniz için
+        $namespaces = [
+            '',
+            '\\',
+            'App\\',
+            'App\\Models\\',
+            'App\\Services\\',
+            'App\\Traits\\',
+            'App\\Helpers\\',
+            'Modules\\',
+        ];
+
+        // Her namespace'i dene
+        foreach ($namespaces as $namespace) {
+            $fullName = $namespace . $traitName;
+            if (trait_exists($fullName)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Çalıştırılabilir sorgu oluştur - anonim sınıf özel işleme
+     */
+    protected function createExecutableQuery(string $query, array $imports): string
+    {
+        // Anonim sınıf kullanımı var mı?
+        if (strpos($query, 'new class') !== false) {
+            // Trait'leri çıkar
+            preg_match_all('/\(new\s+class[^{]*{[^}]*use\s+([\w\\]+);/is', $query, $anonTraitMatches);
+
+            // Eğer trait içeriyorsa ve trait'ler mevcut değilse, mock sınıf kullan
+            if (!empty($anonTraitMatches[1])) {
+                $modifiedQuery = $query;
+                foreach ($anonTraitMatches[1] as $trait) {
+                    if (!$this->checkTraitExists($trait)) {
+                        // Trait'i bir mock ile değiştir
+                        $mockTraitName = md5($trait);
+                        $modifiedQuery = str_replace(
+                            "use {$trait};",
+                            "/* use {$trait} */ // Trait {$trait} bulunamadı - devre dışı bırakıldı",
+                            $modifiedQuery
+                        );
+                    }
+                }
+                return $modifiedQuery;
+            }
+        }
+
+        return $query;
+    }
+
     protected function extractQueryChains($phpFiles, &$querySources = []): array
     {
         $parser = (new ParserFactory)->createForNewestSupportedVersion();
@@ -658,8 +804,28 @@ class DetectMissingIndexes extends Command
 
         foreach ($phpFiles as $file) {
             try {
-                $code = file_get_contents($file->getRealPath());
-                $ast = $parser->parse($code);
+                $filePath = $file->getRealPath();
+
+                // Dosya geçerli bir PHP dosyası mı kontrol et
+                if (!FileValidator::isValidPhpFile($filePath)) {
+                    continue;
+                }
+
+                // PHP syntax kontrolü (opsiyonel)
+                $lintResult = FileValidator::lintPhpFile($filePath);
+                if ($lintResult !== true) {
+                    $this->warn("PHP Lint hatası: {$filePath} - {$lintResult}");
+                    continue;
+                }
+
+                $code = file_get_contents($filePath);
+
+                try {
+                    $ast = $parser->parse($code);
+                } catch (\Throwable $parseError) {
+                    $this->warn("AST parse hatası: {$filePath} - {$parseError->getMessage()}");
+                    continue;
+                }
 
                 $traverser = new NodeTraverser();
                 $traverser->addVisitor(new NameResolver());
@@ -738,7 +904,7 @@ class DetectMissingIndexes extends Command
                 });
                 $traverser->traverse($ast);
             } catch (Throwable $e) {
-                $this->warn("AST parse hatası: {$file->getRealPath()} - {$e->getMessage()}");
+                $this->warn("AST traverse hatası: {$filePath} - {$e->getMessage()}");
                 continue;
             }
         }

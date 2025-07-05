@@ -59,8 +59,18 @@ class ImportAnalyzer
             }
         }
 
-        // Sınıf içi trait kullanımlarını bul
+        // Sınıf içi trait kullanımlarını bul (hem normal hem anonim sınıflar)
         preg_match_all('/class\s+[\w]+[^{]*{[^}]*use\s+([\w\\,\s]+);/is', $content, $traitMatches);
+
+        // Anonim sınıf trait kullanımlarını da bul
+        preg_match_all('/\(new\s+class[^{]*{[^}]*use\s+([\w\\,\s]+);/is', $content, $anonTraitMatches);
+
+        // Anonim sınıf trait sonuçlarını da ekle
+        if (!empty($anonTraitMatches[1])) {
+            foreach ($anonTraitMatches[1] as $traitList) {
+                $traitMatches[1][] = $traitList; // Normal trait listesine ekle
+            }
+        }
         if (!empty($traitMatches[1])) {
             foreach ($traitMatches[1] as $traitList) {
                 $traits = array_map('trim', explode(',', $traitList));
