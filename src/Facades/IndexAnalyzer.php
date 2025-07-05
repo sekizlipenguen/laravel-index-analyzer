@@ -1,6 +1,6 @@
 <?php
 
-namespace SekizliPenguen\LaravelIndexAnalyzer\Facades;
+namespace SekizliPenguen\IndexAnalyzer\Facades;
 
 use Illuminate\Support\Facades\Facade;
 

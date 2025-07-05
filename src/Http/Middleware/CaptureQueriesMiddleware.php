@@ -1,9 +1,9 @@
 <?php
 
-namespace SekizliPenguen\LaravelIndexAnalyzer\Http\Middleware;
+namespace SekizliPenguen\IndexAnalyzer\Http\Middleware;
 
 use Closure;
-use SekizliPenguen\LaravelIndexAnalyzer\Facades\IndexAnalyzer;
+use SekizliPenguen\IndexAnalyzer\Facades\IndexAnalyzer;
 
 class CaptureQueriesMiddleware
 {

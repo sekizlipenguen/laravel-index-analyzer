@@ -1,9 +1,10 @@
 <?php
 
-namespace SekizliPenguen\LaravelIndexAnalyzer\Http\Middleware;
+namespace SekizliPenguen\IndexAnalyzer\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class InjectDebugBarMiddleware
@@ -11,7 +12,7 @@ class InjectDebugBarMiddleware
     /**
      * Handle an incoming request.
      *
-     * @param \Illuminate\Http\Request $request
+     * @param Request $request
      * @param \Closure $next
      * @return mixed
      */
@@ -31,7 +32,7 @@ class InjectDebugBarMiddleware
     /**
      * Determine if we should inject the debug bar.
      *
-     * @param \Illuminate\Http\Request $request
+     * @param Request $request
      * @param mixed $response
      * @return bool
      */

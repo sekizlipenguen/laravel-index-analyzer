@@ -1,11 +1,11 @@
 <?php
 
-namespace SekizliPenguen\LaravelIndexAnalyzer;
+namespace SekizliPenguen\IndexAnalyzer;
 
 use Illuminate\Support\ServiceProvider;
-use SekizliPenguen\LaravelIndexAnalyzer\Http\Middleware\CaptureQueriesMiddleware;
+use SekizliPenguen\IndexAnalyzer\Http\Middleware\CaptureQueriesMiddleware;
 
-class LaravelIndexAnalyzerServiceProvider extends ServiceProvider
+class IndexAnalyzerServiceProvider extends ServiceProvider
 {
     /**
      * Register services.

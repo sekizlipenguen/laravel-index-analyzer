@@ -1,11 +1,11 @@
 <?php
 
-namespace SekizliPenguen\LaravelIndexAnalyzer\Http\Controllers;
+namespace SekizliPenguen\IndexAnalyzer\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use SekizliPenguen\LaravelIndexAnalyzer\Facades\IndexAnalyzer;
+use SekizliPenguen\IndexAnalyzer\Facades\IndexAnalyzer;
 
 class IndexAnalyzerController extends Controller
 {

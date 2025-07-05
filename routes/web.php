@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use SekizliPenguen\LaravelIndexAnalyzer\Http\Controllers\IndexAnalyzerController;
+use SekizliPenguen\IndexAnalyzer\Http\Controllers\IndexAnalyzerController;
 
 $routePrefix = config('index-analyzer.route_prefix', 'index-analyzer');
 $middleware = config('index-analyzer.middleware', ['web']);

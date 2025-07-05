@@ -1,9 +1,8 @@
 <?php
 
-namespace SekizliPenguen\LaravelIndexAnalyzer\Tests;
+namespace SekizliPenguen\IndexAnalyzer\Tests;
 
 use Orchestra\Testbench\TestCase as BaseTestCase;
-use SekizliPenguen\LaravelIndexAnalyzer\LaravelIndexAnalyzerServiceProvider;
 
 class TestCase extends BaseTestCase
 {

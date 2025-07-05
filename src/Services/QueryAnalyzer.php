@@ -1,6 +1,6 @@
 <?php
 
-namespace SekizliPenguen\LaravelIndexAnalyzer\Services;
+namespace SekizliPenguen\IndexAnalyzer\Services;
 
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\DB;
@@ -11,21 +11,21 @@ class QueryAnalyzer
     /**
      * The application instance.
      *
-     * @var \Illuminate\Foundation\Application
+     * @var Application
      */
-    protected $app;
+    protected Application $app;
 
     /**
      * Cached indexes keyed by table name.
      *
      * @var array
      */
-    protected $cachedIndexes = [];
+    protected array $cachedIndexes = [];
 
     /**
      * Create a new query analyzer instance.
      *
-     * @param \Illuminate\Foundation\Application $app
+     * @param Application $app
      * @return void
      */
     public function __construct(Application $app)
@@ -39,7 +39,7 @@ class QueryAnalyzer
      * @param array $queries
      * @return array
      */
-    public function analyze(array $queries)
+    public function analyze(array $queries): array
     {
         $suggestions = [];
         $ignoredTables = config('index-analyzer.suggestions.ignore_tables', []);
@@ -105,7 +105,7 @@ class QueryAnalyzer
      * @param string $sql
      * @return array|null
      */
-    protected function parseQuery($sql)
+    protected function parseQuery(string $sql): ?array
     {
         // Simple SQL parsing - in a real implementation, this would be more robust
         $sql = trim($sql);

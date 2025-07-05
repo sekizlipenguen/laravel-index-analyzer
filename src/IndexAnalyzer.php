@@ -1,11 +1,11 @@
 <?php
 
-namespace SekizliPenguen\LaravelIndexAnalyzer;
+namespace SekizliPenguen\IndexAnalyzer;
 
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\DB;
-use SekizliPenguen\LaravelIndexAnalyzer\Services\QueryAnalyzer;
-use SekizliPenguen\LaravelIndexAnalyzer\Services\QueryLogger;
+use SekizliPenguen\IndexAnalyzer\Services\QueryAnalyzer;
+use SekizliPenguen\IndexAnalyzer\Services\QueryLogger;
 
 class IndexAnalyzer
 {
@@ -19,14 +19,14 @@ class IndexAnalyzer
     /**
      * The query logger instance.
      *
-     * @var \SekizliPenguen\LaravelIndexAnalyzer\Services\QueryLogger
+     * @var \SekizliPenguen\IndexAnalyzer\Services\QueryLogger
      */
     protected $queryLogger;
 
     /**
      * The query analyzer instance.
      *
-     * @var \SekizliPenguen\LaravelIndexAnalyzer\Services\QueryAnalyzer
+     * @var \SekizliPenguen\IndexAnalyzer\Services\QueryAnalyzer
      */
     protected $queryAnalyzer;
 

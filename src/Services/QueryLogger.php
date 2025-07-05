@@ -1,6 +1,6 @@
 <?php
 
-namespace SekizliPenguen\LaravelIndexAnalyzer\Services;
+namespace SekizliPenguen\IndexAnalyzer\Services;
 
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;

@@ -1,10 +1,10 @@
 <?php
 
-namespace SekizliPenguen\LaravelIndexAnalyzer\Tests\Feature;
+namespace SekizliPenguen\IndexAnalyzer\Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
-use SekizliPenguen\LaravelIndexAnalyzer\Facades\IndexAnalyzer;
-use SekizliPenguen\LaravelIndexAnalyzer\Tests\TestCase;
+use SekizliPenguen\IndexAnalyzer\Facades\IndexAnalyzer;
+use SekizliPenguen\IndexAnalyzer\Tests\TestCase;
 
 class IndexAnalyzerTest extends TestCase
 {
