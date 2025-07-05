@@ -71,12 +71,12 @@ class QueryAnalyzer
 
             // Ana tablo için öneri oluştur (eğer yok sayılan bir tablo değilse)
             if (!in_array($parsedQuery['table'], $ignoredTables)) {
-                $key = $parsedQuery['table'] . ':' . implode(',', $parsedQuery['where_columns']);
+                $key = $parsedQuery['table'] . ':' . implode(',', $parsedQuery['filtered_columns']);
 
                 if (!isset($groupedQueries[$key])) {
                     $groupedQueries[$key] = [
                         'table' => $parsedQuery['table'],
-                        'columns' => $parsedQuery['where_columns'],
+                        'columns' => $parsedQuery['filtered_columns'],
                         'count' => 0,
                         'total_time' => 0,
                         'query_type' => $parsedQuery['query_type'] ?? 'SELECT',
@@ -92,6 +92,12 @@ class QueryAnalyzer
         foreach ($this->tableSuggestions as $tableName => $columns) {
             // Yok sayılan tablolar ve boş sütun listelerini atla
             if (in_array($tableName, $ignoredTables) || empty($columns)) {
+                continue;
+            }
+
+            // Hatalı sütunları filtrele
+            $columns = $this->filterInvalidColumns($columns);
+            if (empty($columns)) {
                 continue;
             }
 
@@ -338,6 +344,9 @@ class QueryAnalyzer
         // Benzersiz sütun listesi oluştur
         $uniqueColumns = array_unique($filteredColumns);
 
+        // Hatalı sütunları filtrele (örneğin "mp_" gibi, eğer gerçekte böyle bir sütun yoksa)
+        $uniqueColumns = $this->filterInvalidColumns($uniqueColumns);
+
         // Ek tablo önerileri için analizler yapmak üzere tüm verileri toplayalım
         $result = [
             'table' => $mainTable,
@@ -353,11 +362,10 @@ class QueryAnalyzer
             'select_columns' => $selectColumns,
             'in_clause_columns' => $inClauseColumns,
             'case_when_columns' => $caseWhenColumns,
-            'column_aliases' => $columnAliases
+            'column_aliases' => $columnAliases,
+            // Tüm sütunları içeren birleştirilmiş, filtrelenmiş ve tekil liste
+            'filtered_columns' => $uniqueColumns
         ];
-
-        // Ana sorgu için dönecek sütun listesi
-        $result['where_columns'] = $uniqueColumns;
 
         // Tüm tablolar için indeks önerileri oluştur
         $this->analyzeTablesForSuggestions($result);
@@ -384,6 +392,10 @@ class QueryAnalyzer
         // Fazladan boşlukları temizle ve tek satır haline getir
         $sql = preg_replace('/\s+/', ' ', $sql);
 
+        // Ters tırnak işaretlerini kaldır (`) - tablo ve sütun adlarını belirten işaretler
+        // Bu işlem, SQL sorgusunun analizini kolaylaştırır
+        $sql = str_replace('`', '', $sql);
+
         return $sql;
     }
 
@@ -395,8 +407,8 @@ class QueryAnalyzer
      */
     protected function extractFromTable(string $sql): ?array
     {
-        // Basit FROM ifadesi: FROM table [AS] alias
-        $basicFrom = '/\bFROM\s+`?([a-zA-Z0-9_]+)`?(?:\s+(?:AS\s+)?`?([a-zA-Z0-9_]+)`?)?/i';
+        // Basit FROM ifadesi: FROM table [AS] alias - alt çizgili tablo adlarını doğru işle
+        $basicFrom = '/\bFROM\s+`?([a-zA-Z0-9_]+(?:_[a-zA-Z0-9_]+)*)`?(?:\s+(?:AS\s+)?`?([a-zA-Z0-9_]+)`?)?/i';
 
         // Alt sorgu FROM ifadesi: FROM (SELECT...) [AS] alias
         $subqueryFrom = '/\bFROM\s+\(([^()]+(?:\([^()]*\)[^()]*)*?)\)\s+(?:AS\s+)?`?([a-zA-Z0-9_]+)`?/is';
@@ -470,8 +482,8 @@ class QueryAnalyzer
     {
         $joinTables = [];
 
-        // Basit JOIN ifadesi: JOIN table [AS] alias ON condition
-        $basicJoin = '/\b(INNER|LEFT|RIGHT|OUTER|CROSS)?\s*JOIN\s+`?([a-zA-Z0-9_]+)`?(?:\s+(?:AS\s+)?`?([a-zA-Z0-9_]+)`?)?\s+ON\s+(.+?)(?=\s+(?:INNER|LEFT|RIGHT|OUTER|CROSS)?\s*JOIN\s+|\s+WHERE\s+|\s+GROUP\s+BY|\s+ORDER\s+BY|\s+LIMIT|$)/is';
+        // Basit JOIN ifadesi: JOIN table [AS] alias ON condition - alt çizgili tablo adlarını doğru işle
+        $basicJoin = '/\b(INNER|LEFT|RIGHT|OUTER|CROSS)?\s*JOIN\s+`?([a-zA-Z0-9_]+(?:_[a-zA-Z0-9_]+)*)`?(?:\s+(?:AS\s+)?`?([a-zA-Z0-9_]+)`?)?\s+ON\s+(.+?)(?=\s+(?:INNER|LEFT|RIGHT|OUTER|CROSS)?\s*JOIN\s+|\s+WHERE\s+|\s+GROUP\s+BY|\s+ORDER\s+BY|\s+LIMIT|$)/is';
 
         // Alt sorgu JOIN ifadesi: JOIN (SELECT...) [AS] alias ON condition
         $subqueryJoin = '/\b(INNER|LEFT|RIGHT|OUTER|CROSS)?\s*JOIN\s+\(([^()]+(?:\([^()]*\)[^()]*)*?)\)\s+(?:AS\s+)?`?([a-zA-Z0-9_]+)`?\s+ON\s+(.+?)(?=\s+(?:INNER|LEFT|RIGHT|OUTER|CROSS)?\s*JOIN\s+|\s+WHERE\s+|\s+GROUP\s+BY|\s+ORDER\s+BY|\s+LIMIT|$)/is';
@@ -679,8 +691,8 @@ class QueryAnalyzer
      */
     protected function extractColumnsFromExpression(string $expr, array &$columns): void
     {
-        // table.column formatındaki tüm sütunları bul
-        preg_match_all('/`?([a-zA-Z0-9_]+)`?\.`?([a-zA-Z0-9_]+)`?/i', $expr, $matches, PREG_SET_ORDER);
+        // table.column formatındaki tüm sütunları bul - alt çizgili tablo adlarını doğru işle
+        preg_match_all('/`?([a-zA-Z0-9_]+(?:_[a-zA-Z0-9_]+)*)`?\.`?([a-zA-Z0-9_]+)`?/i', $expr, $matches, PREG_SET_ORDER);
 
         foreach ($matches as $match) {
             $table = $match[1];
@@ -917,13 +929,14 @@ class QueryAnalyzer
      */
     protected function extractColumnsFromLogicalExpression(string $expression, array $tables, array &$columns, string $mainTableAlias, string $mainTable): void
     {
-        // table.column operator value biçimindeki koşulları işle
-        preg_match_all('/(`?([a-zA-Z0-9_]+)`?\.`?([a-zA-Z0-9_]+)`?)\s*(?:=|>|<|>=|<=|<>|!=|LIKE|IN|IS|NOT IN|NOT|BETWEEN)/i', $expression, $tableColumnMatches, PREG_SET_ORDER);
+        // table.column operator value biçimindeki koşulları işle - tam tablo adlarını koru
+        preg_match_all('/(`?([a-zA-Z0-9_]+(?:_[a-zA-Z0-9_]+)*)`?\.`?([a-zA-Z0-9_]+)`?)\s*(?:=|>|<|>=|<=|<>|!=|LIKE|IN|IS|NOT IN|NOT|BETWEEN)/i', $expression, $tableColumnMatches, PREG_SET_ORDER);
 
         foreach ($tableColumnMatches as $match) {
             $alias = $match[2];
             $column = $match[3];
 
+            // Tablo adları içindeki alt çizgi karakterlerini doğru işle
             if (isset($tables[$alias])) {
                 $table = $tables[$alias];
                 $columns[] = [
@@ -1269,7 +1282,7 @@ class QueryAnalyzer
      * @param array $columns
      * @return bool
      */
-    protected function isIndexNeeded($table, array $columns)
+    protected function isIndexNeeded(string $table, array $columns): bool
     {
         if (empty($columns)) {
             return false;
@@ -1297,7 +1310,7 @@ class QueryAnalyzer
      * @param string $table
      * @return array
      */
-    protected function getTableIndexes($table)
+    protected function getTableIndexes(string $table): array
     {
         if (isset($this->cachedIndexes[$table])) {
             return $this->cachedIndexes[$table];
@@ -1392,7 +1405,7 @@ class QueryAnalyzer
      * @param array $set
      * @return bool
      */
-    protected function isSubset(array $subset, array $set)
+    protected function isSubset(array $subset, array $set): bool
     {
         if (empty($subset)) {
             return true;
@@ -1409,6 +1422,30 @@ class QueryAnalyzer
      * @param array $columns
      * @return string
      */
+    /**
+     * Hatalı sütunları filtrele
+     *
+     * @param array $columns
+     * @return array
+     */
+    protected function filterInvalidColumns(array $columns): array
+    {
+        // Genellikle hatalı ayrıştırmadan kaynaklanan kısa sütun adlarını filtrele
+        return array_filter($columns, function ($column) {
+            // Nokta içeren tablo adlarından hatalı ayrıştırılmış olabilecek kısa sütunları filtrele
+            if (in_array($column, ['mp_', 'integrations', 'mp']) || strpos($column, '_') === 0) {
+                return false;
+            }
+
+            // Çok kısa (1-2 karakter) sütun adlarını filtrele, bunlar genellikle hatalı ayrıştırmadan kaynaklanır
+            if (strlen($column) < 3 && !in_array($column, ['id', 'ip'])) { // id ve ip gibi geçerli kısa sütunlar hariç
+                return false;
+            }
+
+            return true;
+        });
+    }
+
     protected function generateIndexName($table, array $columns)
     {
         return $table . '_' . implode('_', $columns) . '_idx';
