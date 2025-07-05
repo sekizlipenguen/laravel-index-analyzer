@@ -155,217 +155,128 @@ class QueryAnalyzer
      */
     protected function parseQuery(string $sql): ?array
     {
-        // Simple SQL parsing - in a real implementation, this would be more robust
-        $sql = trim($sql);
-
-        // We're only interested in SELECT, UPDATE and DELETE queries
-        $upperSql = strtoupper($sql);
-        if (!Str::startsWith($upperSql, 'SELECT') &&
-            !Str::startsWith($upperSql, 'UPDATE') &&
-            !Str::startsWith($upperSql, 'DELETE')) {
-            return null;
-        }
+        // SQL sorgusunu temizle ve normalize et
+        $sql = $this->normalizeSql($sql);
 
         // Sorgu türünü belirle
-        $queryType = 'SELECT';
-        if (Str::startsWith($upperSql, 'UPDATE')) {
+        $upperSql = strtoupper($sql);
+        if (Str::startsWith($upperSql, 'SELECT')) {
+            $queryType = 'SELECT';
+        } elseif (Str::startsWith($upperSql, 'UPDATE')) {
             $queryType = 'UPDATE';
         } elseif (Str::startsWith($upperSql, 'DELETE')) {
             $queryType = 'DELETE';
+        } else {
+            // Desteklenmeyen sorgu tipi
+            return null;
         }
 
-        // Tüm tabloları ve join bilgilerini topla
+        // Tüm tabloları ve sütunları saklamak için diziler
         $tables = [];
+        $mainTable = null;
+        $mainTableAlias = null;
         $joinColumns = [];
         $whereColumns = [];
+        $havingColumns = [];
+        $orderByColumns = [];
+        $groupByColumns = [];
+        $selectColumns = [];
+        $inClauseColumns = [];
+        $caseWhenColumns = [];
+        $columnAliases = [];
+        $subqueryTables = [];
 
-        // Ana tablo adını çıkar (sorgu tipine göre farklı işlem yapılır)
+        // Sorgu tipine göre ana tabloyu belirle
         if ($queryType === 'SELECT') {
-            // SELECT için FROM kısmını bul
-            $fromMatch = [];
-            if (!preg_match('/\bFROM\s+[`"]?([a-zA-Z0-9_]+)[`"]?(?:\s+(?:AS\s+)?[`"]?([a-zA-Z0-9_]+)[`"]?)?/i', $sql, $fromMatch)) {
-                return null;
+            // Alt sorguları analiz et
+            $this->extractAndParseSubqueries($sql);
+
+            // SELECT ifadelerinden sütunları çıkar
+            $this->extractSelectColumns($sql, $selectColumns, $columnAliases);
+
+            // FROM ifadesinden ana tabloyu çıkar
+            $fromInfo = $this->extractFromTable($sql);
+            if (!$fromInfo) {
+                return null; // FROM bulunamadı, bu sorguyu analiz edemiyoruz
             }
 
-            $mainTable = $fromMatch[1];
-            $mainTableAlias = !empty($fromMatch[2]) ? $fromMatch[2] : $mainTable;
+            $mainTable = $fromInfo['table'];
+            $mainTableAlias = $fromInfo['alias'];
             $tables[$mainTableAlias] = $mainTable;
+
+            // Alt tablo sorguları için kontrol et
+            if ($fromInfo['is_subquery']) {
+                $subqueryTables[] = $mainTable;
+            }
         } elseif ($queryType === 'UPDATE') {
             // UPDATE için tablo adını doğrudan al
-            $updateMatch = [];
-            if (!preg_match('/UPDATE\s+[`"]?([a-zA-Z0-9_]+)[`"]?(?:\s+(?:AS\s+)?[`"]?([a-zA-Z0-9_]+)[`"]?)?/i', $sql, $updateMatch)) {
-                return null;
+            $updateInfo = $this->extractUpdateTable($sql);
+            if (!$updateInfo) {
+                return null; // UPDATE tablosu bulunamadı
             }
 
-            $mainTable = $updateMatch[1];
-            $mainTableAlias = !empty($updateMatch[2]) ? $updateMatch[2] : $mainTable;
+            $mainTable = $updateInfo['table'];
+            $mainTableAlias = $updateInfo['alias'];
             $tables[$mainTableAlias] = $mainTable;
         } elseif ($queryType === 'DELETE') {
             // DELETE için FROM kısmını bul
-            $deleteMatch = [];
-            if (!preg_match('/DELETE\s+FROM\s+[`"]?([a-zA-Z0-9_]+)[`"]?(?:\s+(?:AS\s+)?[`"]?([a-zA-Z0-9_]+)[`"]?)?/i', $sql, $deleteMatch)) {
-                return null;
+            $deleteInfo = $this->extractDeleteTable($sql);
+            if (!$deleteInfo) {
+                return null; // DELETE FROM bulunamadı
             }
 
-            $mainTable = $deleteMatch[1];
-            $mainTableAlias = !empty($deleteMatch[2]) ? $deleteMatch[2] : $mainTable;
+            $mainTable = $deleteInfo['table'];
+            $mainTableAlias = $deleteInfo['alias'];
             $tables[$mainTableAlias] = $mainTable;
         }
 
-        // JOIN ifadelerini çıkar
-        $joinPattern = '/\b(INNER|LEFT|RIGHT|OUTER|CROSS)?\s*JOIN\s+[`"]?([a-zA-Z0-9_]+)[`"]?(?:\s+(?:AS\s+)?[`"]?([a-zA-Z0-9_]+)[`"]?)?\s+ON\s+(.+?)(?=\s+(?:INNER|LEFT|RIGHT|OUTER|CROSS)?\s*JOIN\s+|\s+WHERE\s+|\s+GROUP\s+BY|\s+ORDER\s+BY|\s+LIMIT|$)/is';
-        preg_match_all($joinPattern, $sql, $joinMatches, PREG_SET_ORDER);
+        // JOIN ifadelerini analiz et
+        $joinTables = $this->extractJoinTables($sql);
 
-        foreach ($joinMatches as $match) {
-            $joinTable = $match[2];
-            $joinAlias = !empty($match[3]) ? $match[3] : $joinTable;
-            $joinCondition = $match[4];
+        foreach ($joinTables as $joinInfo) {
+            $joinTable = $joinInfo['table'];
+            $joinAlias = $joinInfo['alias'];
+            $joinCondition = $joinInfo['condition'];
 
             $tables[$joinAlias] = $joinTable;
 
-            // JOIN koşulundaki sütunları çıkar (indeksleme için önemli)
-            preg_match_all('/([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)\s*=\s*([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)/i', $joinCondition, $joinColumnMatches, PREG_SET_ORDER);
+            // JOIN koşullarını analiz et
+            $this->analyzeJoinCondition($joinCondition, $tables, $joinColumns);
 
-            foreach ($joinColumnMatches as $colMatch) {
-                $leftAlias = $colMatch[1];
-                $leftColumn = $colMatch[2];
-                $rightAlias = $colMatch[3];
-                $rightColumn = $colMatch[4];
-
-                // JOIN koşullarındaki sütunlar genellikle indekslenmesi gereken sütunlardır
-                if (isset($tables[$leftAlias])) {
-                    $joinColumns[] = [
-                        'table' => $tables[$leftAlias],
-                        'column' => $leftColumn,
-                        'alias' => $leftAlias
-                    ];
-                }
-
-                if (isset($tables[$rightAlias])) {
-                    $joinColumns[] = [
-                        'table' => $tables[$rightAlias],
-                        'column' => $rightColumn,
-                        'alias' => $rightAlias
-                    ];
-                }
+            // Alt tablo sorguları için kontrol et
+            if ($joinInfo['is_subquery']) {
+                $subqueryTables[] = $joinTable;
             }
         }
 
-        // WHERE koşullarını çıkar
-        $whereMatch = [];
-
-        if (preg_match('/\bWHERE\s+(.+?)(?:\s+GROUP\s+BY|\s+ORDER\s+BY|\s+LIMIT|\s+HAVING|$)/is', $sql, $whereMatch)) {
-            $whereClause = $whereMatch[1];
-
-            // Her tablo için WHERE koşullarındaki sütunları çıkar
-            foreach ($tables as $alias => $tableName) {
-                // Alias.column şeklindeki koşulları ara
-                preg_match_all('/' . preg_quote($alias, '/') . '\.([a-zA-Z0-9_]+)\s*(?:=|>|<|>=|<=|<>|!=|LIKE|IS|IN|NOT IN|BETWEEN)/i', $whereClause, $aliasColumnMatches);
-
-                if (!empty($aliasColumnMatches[1])) {
-                    foreach ($aliasColumnMatches[1] as $column) {
-                        $whereColumns[] = [
-                            'table' => $tableName,
-                            'column' => $column,
-                            'alias' => $alias
-                        ];
-                    }
-                }
-
-                // Tabloya özgü, alias olmadan direkt sütun adları (sadece ana tablo için)
-                if ($alias === $mainTableAlias || $alias === $mainTable) {
-                    // Nokta olmadan ama başka alias olmayan sütunları bul
-                    preg_match_all('/(?<!\w\.)\b([a-zA-Z0-9_]+)\s*(?:=|>|<|>=|<=|<>|!=|LIKE|IS|IN|NOT IN|BETWEEN)/i', $whereClause, $directColumnMatches);
-
-                    if (!empty($directColumnMatches[1])) {
-                        foreach ($directColumnMatches[1] as $column) {
-                            // SQL anahtar kelimeleri hariç
-                            if (!in_array(strtoupper($column), ['AND', 'OR', 'NULL', 'NOT', 'IS', 'IN', 'LIKE', 'BETWEEN'])) {
-                                $whereColumns[] = [
-                                    'table' => $tableName,
-                                    'column' => $column,
-                                    'alias' => $alias
-                                ];
-                            }
-                        }
-                    }
-                }
-            }
+        // WHERE koşullarını analiz et
+        $whereClause = $this->extractWhereClause($sql);
+        if ($whereClause) {
+            $this->analyzeWhereClause($whereClause, $tables, $whereColumns, $inClauseColumns, $mainTableAlias, $mainTable);
         }
 
-        // ORDER BY ve GROUP BY sütunlarını da topla (bunlar da indeks kullanabilir)
-        $orderGroupColumns = [];
-
-        // ORDER BY
-        if (preg_match('/\bORDER\s+BY\s+(.+?)(?:\s+LIMIT|$)/is', $sql, $orderMatch)) {
-            preg_match_all('/([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?/i', $orderMatch[1], $orderColumns, PREG_SET_ORDER);
-
-            foreach ($orderColumns as $colMatch) {
-                if (isset($colMatch[2])) { // table.column biçimi
-                    $alias = $colMatch[1];
-                    $column = $colMatch[2];
-
-                    if (isset($tables[$alias])) {
-                        $orderGroupColumns[] = [
-                            'table' => $tables[$alias],
-                            'column' => $column,
-                            'alias' => $alias
-                        ];
-                    }
-                } else { // Sadece column adı
-                    $column = $colMatch[1];
-
-                    // Varsayılan olarak ana tabloya ait kabul et
-                    $orderGroupColumns[] = [
-                        'table' => $mainTable,
-                        'column' => $column,
-                        'alias' => $mainTableAlias
-                    ];
-                }
-            }
+        // HAVING koşullarını analiz et
+        $havingClause = $this->extractHavingClause($sql);
+        if ($havingClause) {
+            $this->analyzeHavingClause($havingClause, $tables, $havingColumns, $mainTableAlias, $mainTable);
         }
 
-        // GROUP BY
-        if (preg_match('/\bGROUP\s+BY\s+(.+?)(?:\s+HAVING|\s+ORDER|\s+LIMIT|$)/is', $sql, $groupMatch)) {
-            preg_match_all('/([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?/i', $groupMatch[1], $groupColumns, PREG_SET_ORDER);
-
-            foreach ($groupColumns as $colMatch) {
-                if (isset($colMatch[2])) { // table.column biçimi
-                    $alias = $colMatch[1];
-                    $column = $colMatch[2];
-
-                    if (isset($tables[$alias])) {
-                        $orderGroupColumns[] = [
-                            'table' => $tables[$alias],
-                            'column' => $column,
-                            'alias' => $alias
-                        ];
-                    }
-                } else { // Sadece column adı
-                    $column = $colMatch[1];
-
-                    // Varsayılan olarak ana tabloya ait kabul et
-                    $orderGroupColumns[] = [
-                        'table' => $mainTable,
-                        'column' => $column,
-                        'alias' => $mainTableAlias
-                    ];
-                }
-            }
+        // GROUP BY ifadelerini analiz et
+        $groupByClause = $this->extractGroupByClause($sql);
+        if ($groupByClause) {
+            $this->analyzeGroupByClause($groupByClause, $tables, $groupByColumns, $mainTableAlias, $mainTable);
         }
 
-        // Tüm bilgileri topla ve döndür
-        $result = [
-            'table' => $mainTable,
-            'alias' => $mainTableAlias,
-            'query_type' => $queryType,
-            'tables' => $tables,
-            'join_columns' => $joinColumns,
-            'where_columns' => $whereColumns,
-            'order_group_columns' => $orderGroupColumns
-        ];
+        // ORDER BY ifadelerini analiz et
+        $orderByClause = $this->extractOrderByClause($sql);
+        if ($orderByClause) {
+            $this->analyzeOrderByClause($orderByClause, $tables, $orderByColumns, $mainTableAlias, $mainTable);
+        }
 
-        // Tüm sütunları birleştir (alias filtrelemesi ile)
+        // CASE/WHEN/IF koşullarını ayrıştır
+        $this->analyzeCaseWhenStatements($sql, $tables, $caseWhenColumns, $mainTableAlias, $mainTable);
+
+        // Tüm sütunları birleştir (alias filtrelemesi ile) - sadece ana tablo için
         $filteredColumns = [];
 
         // JOIN sütunları
@@ -382,20 +293,865 @@ class QueryAnalyzer
             }
         }
 
-        // ORDER BY ve GROUP BY sütunları
-        foreach ($orderGroupColumns as $col) {
+        // HAVING sütunları
+        foreach ($havingColumns as $col) {
+            if ($col['table'] === $mainTable) {
+                $filteredColumns[] = $col['column'];
+            }
+        }
+
+        // GROUP BY sütunları
+        foreach ($groupByColumns as $col) {
+            if ($col['table'] === $mainTable) {
+                $filteredColumns[] = $col['column'];
+            }
+        }
+
+        // ORDER BY sütunları
+        foreach ($orderByColumns as $col) {
+            if ($col['table'] === $mainTable) {
+                $filteredColumns[] = $col['column'];
+            }
+        }
+
+        // IN clause sütunları
+        foreach ($inClauseColumns as $col) {
+            if ($col['table'] === $mainTable) {
+                $filteredColumns[] = $col['column'];
+            }
+        }
+
+        // CASE/WHEN/IF koşullarındaki sütunlar
+        foreach ($caseWhenColumns as $col) {
+            if ($col['table'] === $mainTable) {
+                $filteredColumns[] = $col['column'];
+            }
+        }
+
+        // SELECT içindeki ana tablo sütunları
+        foreach ($selectColumns as $col) {
             if ($col['table'] === $mainTable) {
                 $filteredColumns[] = $col['column'];
             }
         }
 
         // Benzersiz sütun listesi oluştur
-        $result['where_columns'] = array_unique($filteredColumns);
+        $uniqueColumns = array_unique($filteredColumns);
 
-        // Ek tablo önerileri için analizler
+        // Ek tablo önerileri için analizler yapmak üzere tüm verileri toplayalım
+        $result = [
+            'table' => $mainTable,
+            'alias' => $mainTableAlias,
+            'query_type' => $queryType,
+            'tables' => $tables,
+            'subquery_tables' => $subqueryTables,
+            'join_columns' => $joinColumns,
+            'where_columns' => $whereColumns,
+            'having_columns' => $havingColumns,
+            'order_by_columns' => $orderByColumns,
+            'group_by_columns' => $groupByColumns,
+            'select_columns' => $selectColumns,
+            'in_clause_columns' => $inClauseColumns,
+            'case_when_columns' => $caseWhenColumns,
+            'column_aliases' => $columnAliases
+        ];
+
+        // Ana sorgu için dönecek sütun listesi
+        $result['where_columns'] = $uniqueColumns;
+
+        // Tüm tablolar için indeks önerileri oluştur
         $this->analyzeTablesForSuggestions($result);
 
         return $result;
+    }
+
+    /**
+     * SQL sorgusunu normalleştir
+     *
+     * @param string $sql
+     * @return string
+     */
+    protected function normalizeSql(string $sql): string
+    {
+        $sql = trim($sql);
+
+        // Çok satırlı yorumları temizle (/* ... */)
+        $sql = preg_replace('/\/\*.*?\*\//s', ' ', $sql);
+
+        // Tek satırlı yorumları temizle (-- ... ve # ...)
+        $sql = preg_replace('/--.*?\n|#.*?\n/', '\n', $sql);
+
+        // Fazladan boşlukları temizle ve tek satır haline getir
+        $sql = preg_replace('/\s+/', ' ', $sql);
+
+        return $sql;
+    }
+
+    /**
+     * SQL sorgusundan FROM tablosunu çıkarır
+     *
+     * @param string $sql
+     * @return array|null
+     */
+    protected function extractFromTable(string $sql): ?array
+    {
+        // Basit FROM ifadesi: FROM table [AS] alias
+        $basicFrom = '/\bFROM\s+`?([a-zA-Z0-9_]+)`?(?:\s+(?:AS\s+)?`?([a-zA-Z0-9_]+)`?)?/i';
+
+        // Alt sorgu FROM ifadesi: FROM (SELECT...) [AS] alias
+        $subqueryFrom = '/\bFROM\s+\(([^()]+(?:\([^()]*\)[^()]*)*?)\)\s+(?:AS\s+)?`?([a-zA-Z0-9_]+)`?/is';
+
+        // Önce alt sorguları kontrol et
+        if (preg_match($subqueryFrom, $sql, $match)) {
+            return [
+                'table' => 'subquery_' . md5($match[1]), // Alt sorgular için benzersiz bir isim oluştur
+                'alias' => $match[2],
+                'is_subquery' => true
+            ];
+        }
+
+        // Basit tablo adları için kontrol et
+        if (preg_match($basicFrom, $sql, $match)) {
+            return [
+                'table' => $match[1],
+                'alias' => !empty($match[2]) ? $match[2] : $match[1],
+                'is_subquery' => false
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * SQL sorgusundan UPDATE tablosunu çıkarır
+     *
+     * @param string $sql
+     * @return array|null
+     */
+    protected function extractUpdateTable(string $sql): ?array
+    {
+        if (preg_match('/UPDATE\s+`?([a-zA-Z0-9_]+)`?(?:\s+(?:AS\s+)?`?([a-zA-Z0-9_]+)`?)?/i', $sql, $match)) {
+            return [
+                'table' => $match[1],
+                'alias' => !empty($match[2]) ? $match[2] : $match[1],
+                'is_subquery' => false
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * SQL sorgusundan DELETE tablosunu çıkarır
+     *
+     * @param string $sql
+     * @return array|null
+     */
+    protected function extractDeleteTable(string $sql): ?array
+    {
+        if (preg_match('/DELETE\s+FROM\s+`?([a-zA-Z0-9_]+)`?(?:\s+(?:AS\s+)?`?([a-zA-Z0-9_]+)`?)?/i', $sql, $match)) {
+            return [
+                'table' => $match[1],
+                'alias' => !empty($match[2]) ? $match[2] : $match[1],
+                'is_subquery' => false
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * SQL sorgusundan JOIN tablolarını çıkarır
+     *
+     * @param string $sql
+     * @return array
+     */
+    protected function extractJoinTables(string $sql): array
+    {
+        $joinTables = [];
+
+        // Basit JOIN ifadesi: JOIN table [AS] alias ON condition
+        $basicJoin = '/\b(INNER|LEFT|RIGHT|OUTER|CROSS)?\s*JOIN\s+`?([a-zA-Z0-9_]+)`?(?:\s+(?:AS\s+)?`?([a-zA-Z0-9_]+)`?)?\s+ON\s+(.+?)(?=\s+(?:INNER|LEFT|RIGHT|OUTER|CROSS)?\s*JOIN\s+|\s+WHERE\s+|\s+GROUP\s+BY|\s+ORDER\s+BY|\s+LIMIT|$)/is';
+
+        // Alt sorgu JOIN ifadesi: JOIN (SELECT...) [AS] alias ON condition
+        $subqueryJoin = '/\b(INNER|LEFT|RIGHT|OUTER|CROSS)?\s*JOIN\s+\(([^()]+(?:\([^()]*\)[^()]*)*?)\)\s+(?:AS\s+)?`?([a-zA-Z0-9_]+)`?\s+ON\s+(.+?)(?=\s+(?:INNER|LEFT|RIGHT|OUTER|CROSS)?\s*JOIN\s+|\s+WHERE\s+|\s+GROUP\s+BY|\s+ORDER\s+BY|\s+LIMIT|$)/is';
+
+        // Önce alt sorgu JOIN'leri bul
+        preg_match_all($subqueryJoin, $sql, $subqueryJoinMatches, PREG_SET_ORDER);
+
+        foreach ($subqueryJoinMatches as $match) {
+            $joinType = $match[1] ?: 'INNER';
+            $joinSubquery = $match[2];
+            $joinAlias = $match[3];
+            $joinCondition = $match[4];
+
+            $joinTables[] = [
+                'type' => $joinType,
+                'table' => 'subquery_' . md5($joinSubquery), // Alt sorgular için benzersiz isim
+                'alias' => $joinAlias,
+                'condition' => $joinCondition,
+                'is_subquery' => true
+            ];
+        }
+
+        // Şimdi normal JOIN'leri bul
+        preg_match_all($basicJoin, $sql, $basicJoinMatches, PREG_SET_ORDER);
+
+        foreach ($basicJoinMatches as $match) {
+            $joinType = $match[1] ?: 'INNER';
+            $joinTable = $match[2];
+            $joinAlias = !empty($match[3]) ? $match[3] : $joinTable;
+            $joinCondition = $match[4];
+
+            $joinTables[] = [
+                'type' => $joinType,
+                'table' => $joinTable,
+                'alias' => $joinAlias,
+                'condition' => $joinCondition,
+                'is_subquery' => false
+            ];
+        }
+
+        return $joinTables;
+    }
+
+    /**
+     * SQL sorgusundan WHERE cümlesini çıkarır
+     *
+     * @param string $sql
+     * @return string|null
+     */
+    protected function extractWhereClause(string $sql): ?string
+    {
+        if (preg_match('/\bWHERE\s+(.+?)(?:\s+GROUP\s+BY|\s+HAVING|\s+ORDER\s+BY|\s+LIMIT|\s+UNION|\s+EXCEPT|\s+INTERSECT|$)/is', $sql, $match)) {
+            return $match[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * SQL sorgusundan HAVING cümlesini çıkarır
+     *
+     * @param string $sql
+     * @return string|null
+     */
+    protected function extractHavingClause(string $sql): ?string
+    {
+        if (preg_match('/\bHAVING\s+(.+?)(?:\s+ORDER\s+BY|\s+LIMIT|\s+UNION|\s+EXCEPT|\s+INTERSECT|$)/is', $sql, $match)) {
+            return $match[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * SQL sorgusundan GROUP BY cümlesini çıkarır
+     *
+     * @param string $sql
+     * @return string|null
+     */
+    protected function extractGroupByClause(string $sql): ?string
+    {
+        if (preg_match('/\bGROUP\s+BY\s+(.+?)(?:\s+HAVING|\s+ORDER\s+BY|\s+LIMIT|\s+UNION|\s+EXCEPT|\s+INTERSECT|$)/is', $sql, $match)) {
+            return $match[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * SQL sorgusundan ORDER BY cümlesini çıkarır
+     *
+     * @param string $sql
+     * @return string|null
+     */
+    protected function extractOrderByClause(string $sql): ?string
+    {
+        if (preg_match('/\bORDER\s+BY\s+(.+?)(?:\s+LIMIT|\s+UNION|\s+EXCEPT|\s+INTERSECT|$)/is', $sql, $match)) {
+            return $match[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * SQL sorgusundan SELECT sütunlarını çıkarır
+     *
+     * @param string $sql
+     * @param array &$selectColumns
+     * @param array &$columnAliases
+     * @return void
+     */
+    protected function extractSelectColumns(string $sql, array &$selectColumns, array &$columnAliases): void
+    {
+        // SELECT ile FROM arasındaki kısmı al
+        if (!preg_match('/SELECT\s+(.+?)\s+FROM/is', $sql, $match)) {
+            return;
+        }
+
+        $selectClause = $match[1];
+
+        // Parantez eşleştirmesini doğru yapabilmek için biraz daha karmaşık bir mantık gerekli
+        // Virgülle ayrılmış sütunları bölmek için state-machine kullanacağız
+        $columns = [];
+        $currentColumn = '';
+        $parenLevel = 0;
+
+        for ($i = 0; $i < strlen($selectClause); $i++) {
+            $char = $selectClause[$i];
+
+            if ($char === '(') {
+                $parenLevel++;
+                $currentColumn .= $char;
+            } elseif ($char === ')') {
+                $parenLevel--;
+                $currentColumn .= $char;
+            } elseif ($char === ',' && $parenLevel === 0) {
+                // Parantez dışındayken virgül bulduğumuzda, sütunu listeye ekle
+                $columns[] = trim($currentColumn);
+                $currentColumn = '';
+            } else {
+                $currentColumn .= $char;
+            }
+        }
+
+        // Son sütunu ekle
+        if (trim($currentColumn) !== '') {
+            $columns[] = trim($currentColumn);
+        }
+
+        // Şimdi her sütunu ayrıştır
+        foreach ($columns as $column) {
+            // AS ile alias belirtilmiş durumlar: column AS alias
+            if (preg_match('/^(.+?)\s+AS\s+`?([a-zA-Z0-9_]+)`?$/i', $column, $aliasMatch)) {
+                $expr = $aliasMatch[1];
+                $alias = $aliasMatch[2];
+
+                // İfade içindeki sütunları çıkar
+                $this->extractColumnsFromExpression($expr, $selectColumns);
+
+                // Alias'ı kaydet
+                $columnAliases[$alias] = $expr;
+            } // Alias belirtilmemiş table.column durumları
+            elseif (preg_match('/^`?([a-zA-Z0-9_]+)`?\.`?([a-zA-Z0-9_]+)`?$/i', $column, $tableColMatch)) {
+                $table = $tableColMatch[1];
+                $col = $tableColMatch[2];
+
+                $selectColumns[] = [
+                    'table' => $table,
+                    'column' => $col,
+                    'alias' => $table
+                ];
+            } // Örtük alias: expr alias
+            elseif (preg_match('/^(.+?)\s+`?([a-zA-Z0-9_]+)`?$/i', $column, $implicitAliasMatch)) {
+                $expr = $implicitAliasMatch[1];
+                $alias = $implicitAliasMatch[2];
+
+                // İfade içindeki sütunları çıkar
+                $this->extractColumnsFromExpression($expr, $selectColumns);
+
+                // Alias'ı kaydet
+                $columnAliases[$alias] = $expr;
+            } // * durumu (tüm sütunlar)
+            elseif ($column === '*') {
+                // Tüm sütunlar seçildiğinde özel bir işlem yapmaya gerek yok
+                continue;
+            } // table.* durumu (bir tablonun tüm sütunları)
+            elseif (preg_match('/^`?([a-zA-Z0-9_]+)`?\.\*$/i', $column, $tableStarMatch)) {
+                $table = $tableStarMatch[1];
+                // Bir tablonun tüm sütunları seçildiğinde özel bir işlem yapmaya gerek yok
+                continue;
+            } // CASE, IF, COALESCE, IFNULL gibi SQL fonksiyonları
+            else {
+                // İfade içindeki sütunları çıkar
+                $this->extractColumnsFromExpression($column, $selectColumns);
+            }
+        }
+    }
+
+    /**
+     * Bir SQL ifadesinden sütunları çıkarır
+     *
+     * @param string $expr
+     * @param array &$columns
+     * @return void
+     */
+    protected function extractColumnsFromExpression(string $expr, array &$columns): void
+    {
+        // table.column formatındaki tüm sütunları bul
+        preg_match_all('/`?([a-zA-Z0-9_]+)`?\.`?([a-zA-Z0-9_]+)`?/i', $expr, $matches, PREG_SET_ORDER);
+
+        foreach ($matches as $match) {
+            $table = $match[1];
+            $column = $match[2];
+
+            $columns[] = [
+                'table' => $table,
+                'column' => $column,
+                'alias' => $table
+            ];
+        }
+    }
+
+    /**
+     * CASE/WHEN/IF ifadelerini analiz eder
+     *
+     * @param string $sql
+     * @param array $tables
+     * @param array &$caseWhenColumns
+     * @param string $mainTableAlias
+     * @param string $mainTable
+     * @return void
+     */
+    protected function analyzeCaseWhenStatements(string $sql, array $tables, array &$caseWhenColumns, string $mainTableAlias, string $mainTable): void
+    {
+        // CASE WHEN ... THEN ... END yapıları
+        preg_match_all('/CASE\s+WHEN\s+(.+?)\s+THEN\s+.+?\s+END/is', $sql, $caseMatches, PREG_PATTERN_ORDER);
+
+        foreach ($caseMatches[1] as $whenCondition) {
+            // WHEN koşulundaki sütunları bul
+            $this->extractColumnsFromLogicalExpression($whenCondition, $tables, $caseWhenColumns, $mainTableAlias, $mainTable);
+        }
+
+        // IF(condition, true_result, false_result) yapıları
+        preg_match_all('/IF\s*\((.+?),/is', $sql, $ifMatches, PREG_PATTERN_ORDER);
+
+        foreach ($ifMatches[1] as $ifCondition) {
+            // IF koşulundaki sütunları bul
+            $this->extractColumnsFromLogicalExpression($ifCondition, $tables, $caseWhenColumns, $mainTableAlias, $mainTable);
+        }
+    }
+
+    /**
+     * JOIN koşullarını analiz eder
+     *
+     * @param string $joinCondition
+     * @param array $tables
+     * @param array &$joinColumns
+     * @return void
+     */
+    protected function analyzeJoinCondition(string $joinCondition, array $tables, array &$joinColumns): void
+    {
+        // table.column = table.column formatındaki koşulları bul
+        preg_match_all('/(`?([a-zA-Z0-9_]+)`?\.`?([a-zA-Z0-9_]+)`?)\s*=\s*(`?([a-zA-Z0-9_]+)`?\.`?([a-zA-Z0-9_]+)`?)/i', $joinCondition, $matches, PREG_SET_ORDER);
+
+        foreach ($matches as $match) {
+            $leftAlias = $match[2];
+            $leftColumn = $match[3];
+            $rightAlias = $match[5];
+            $rightColumn = $match[6];
+
+            // Sol tarafın tablosunu bul
+            if (isset($tables[$leftAlias])) {
+                $leftTable = $tables[$leftAlias];
+                $joinColumns[] = [
+                    'table' => $leftTable,
+                    'column' => $leftColumn,
+                    'alias' => $leftAlias,
+                ];
+            }
+
+            // Sağ tarafın tablosunu bul
+            if (isset($tables[$rightAlias])) {
+                $rightTable = $tables[$rightAlias];
+                $joinColumns[] = [
+                    'table' => $rightTable,
+                    'column' => $rightColumn,
+                    'alias' => $rightAlias,
+                ];
+            }
+        }
+
+        // AND ile bağlanan birden fazla koşul için ayrıştırma
+        $andConditions = preg_split('/\s+AND\s+/i', $joinCondition);
+
+        foreach ($andConditions as $condition) {
+            // USING(column) formatındaki koşullar
+            if (preg_match('/USING\s*\(\s*`?([a-zA-Z0-9_,\s]+)`?\s*\)/i', $condition, $usingMatch)) {
+                $usingColumns = explode(',', $usingMatch[1]);
+
+                foreach ($usingColumns as $column) {
+                    $column = trim($column);
+
+                    // USING içindeki her sütun için tüm tablolarda indeks öner
+                    foreach ($tables as $alias => $tableName) {
+                        $joinColumns[] = [
+                            'table' => $tableName,
+                            'column' => $column,
+                            'alias' => $alias,
+                        ];
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * WHERE koşullarını analiz eder
+     *
+     * @param string $whereClause
+     * @param array $tables
+     * @param array &$whereColumns
+     * @param array &$inClauseColumns
+     * @param string $mainTableAlias
+     * @param string $mainTable
+     * @return void
+     */
+    protected function analyzeWhereClause(string $whereClause, array $tables, array &$whereColumns, array &$inClauseColumns, string $mainTableAlias, string $mainTable): void
+    {
+        // WHERE 1=1 gibi sabit koşulları atla
+        if (preg_match('/^\s*\d+\s*=\s*\d+\s*$/i', $whereClause)) {
+            return;
+        }
+
+        // Mantıksal ifadeleri ayrıştır (AND, OR gruplarını dikkate al)
+        $this->extractColumnsFromLogicalExpression($whereClause, $tables, $whereColumns, $mainTableAlias, $mainTable);
+
+        // IN cümlelerini özel olarak işle
+        preg_match_all('/(`?([a-zA-Z0-9_]+)`?\.)?`?([a-zA-Z0-9_]+)`?\s+IN\s+\([^)]+\)/i', $whereClause, $inMatches, PREG_SET_ORDER);
+
+        foreach ($inMatches as $match) {
+            $alias = !empty($match[2]) ? $match[2] : $mainTableAlias;
+            $column = $match[3];
+
+            if (isset($tables[$alias])) {
+                $table = $tables[$alias];
+                $inClauseColumns[] = [
+                    'table' => $table,
+                    'column' => $column,
+                    'alias' => $alias,
+                ];
+            } else {
+                // Alias belirtilmemişse, ana tabloyu kullan
+                $inClauseColumns[] = [
+                    'table' => $mainTable,
+                    'column' => $column,
+                    'alias' => $mainTableAlias,
+                ];
+            }
+        }
+
+        // NOT IN cümlelerini de işle
+        preg_match_all('/(`?([a-zA-Z0-9_]+)`?\.)?`?([a-zA-Z0-9_]+)`?\s+NOT\s+IN\s+\([^)]+\)/i', $whereClause, $notInMatches, PREG_SET_ORDER);
+
+        foreach ($notInMatches as $match) {
+            $alias = !empty($match[2]) ? $match[2] : $mainTableAlias;
+            $column = $match[3];
+
+            if (isset($tables[$alias])) {
+                $table = $tables[$alias];
+                $inClauseColumns[] = [
+                    'table' => $table,
+                    'column' => $column,
+                    'alias' => $alias,
+                ];
+            } else {
+                // Alias belirtilmemişse, ana tabloyu kullan
+                $inClauseColumns[] = [
+                    'table' => $mainTable,
+                    'column' => $column,
+                    'alias' => $mainTableAlias,
+                ];
+            }
+        }
+
+        // IS NULL / IS NOT NULL yapılarını işle
+        preg_match_all('/(`?([a-zA-Z0-9_]+)`?\.)?`?([a-zA-Z0-9_]+)`?\s+IS\s+(?:NOT\s+)?NULL/i', $whereClause, $isNullMatches, PREG_SET_ORDER);
+
+        foreach ($isNullMatches as $match) {
+            $alias = !empty($match[2]) ? $match[2] : $mainTableAlias;
+            $column = $match[3];
+
+            if (isset($tables[$alias])) {
+                $table = $tables[$alias];
+                $whereColumns[] = [
+                    'table' => $table,
+                    'column' => $column,
+                    'alias' => $alias,
+                ];
+            } else {
+                // Alias belirtilmemişse, ana tabloyu kullan
+                $whereColumns[] = [
+                    'table' => $mainTable,
+                    'column' => $column,
+                    'alias' => $mainTableAlias,
+                ];
+            }
+        }
+
+        // BETWEEN yapılarını işle
+        preg_match_all('/(`?([a-zA-Z0-9_]+)`?\.)?`?([a-zA-Z0-9_]+)`?\s+BETWEEN\s+.+?\s+AND\s+.+?(?=[\s,)]|$)/i', $whereClause, $betweenMatches, PREG_SET_ORDER);
+
+        foreach ($betweenMatches as $match) {
+            $alias = !empty($match[2]) ? $match[2] : $mainTableAlias;
+            $column = $match[3];
+
+            if (isset($tables[$alias])) {
+                $table = $tables[$alias];
+                $whereColumns[] = [
+                    'table' => $table,
+                    'column' => $column,
+                    'alias' => $alias,
+                ];
+            } else {
+                // Alias belirtilmemişse, ana tabloyu kullan
+                $whereColumns[] = [
+                    'table' => $mainTable,
+                    'column' => $column,
+                    'alias' => $mainTableAlias,
+                ];
+            }
+        }
+    }
+
+    /**
+     * Mantıksal ifadelerden sütunları çıkarır (AND/OR gruplarını dikkate alarak)
+     *
+     * @param string $expression
+     * @param array $tables
+     * @param array &$columns
+     * @param string $mainTableAlias
+     * @param string $mainTable
+     * @return void
+     */
+    protected function extractColumnsFromLogicalExpression(string $expression, array $tables, array &$columns, string $mainTableAlias, string $mainTable): void
+    {
+        // table.column operator value biçimindeki koşulları işle
+        preg_match_all('/(`?([a-zA-Z0-9_]+)`?\.`?([a-zA-Z0-9_]+)`?)\s*(?:=|>|<|>=|<=|<>|!=|LIKE|IN|IS|NOT IN|NOT|BETWEEN)/i', $expression, $tableColumnMatches, PREG_SET_ORDER);
+
+        foreach ($tableColumnMatches as $match) {
+            $alias = $match[2];
+            $column = $match[3];
+
+            if (isset($tables[$alias])) {
+                $table = $tables[$alias];
+                $columns[] = [
+                    'table' => $table,
+                    'column' => $column,
+                    'alias' => $alias,
+                ];
+            }
+        }
+
+        // Alias olmadan doğrudan column adı olan koşulları işle
+        preg_match_all('/(?<![\.a-zA-Z0-9_])\s*`?([a-zA-Z0-9_]+)`?\s*(?:=|>|<|>=|<=|<>|!=|LIKE|IN|IS|NOT IN|NOT|BETWEEN)/i', $expression, $columnOnlyMatches);
+
+        if (!empty($columnOnlyMatches[1])) {
+            foreach ($columnOnlyMatches[1] as $column) {
+                // SQL anahtar kelimeleri hariç tut
+                if (!in_array(strtoupper($column), ['AND', 'OR', 'NULL', 'NOT', 'IS', 'IN', 'LIKE', 'BETWEEN', 'TRUE', 'FALSE', 'UNKNOWN'])) {
+                    $columns[] = [
+                        'table' => $mainTable,
+                        'column' => $column,
+                        'alias' => $mainTableAlias,
+                    ];
+                }
+            }
+        }
+    }
+
+    /**
+     * HAVING koşullarını analiz eder
+     *
+     * @param string $havingClause
+     * @param array $tables
+     * @param array &$havingColumns
+     * @param string $mainTableAlias
+     * @param string $mainTable
+     * @return void
+     */
+    protected function analyzeHavingClause(string $havingClause, array $tables, array &$havingColumns, string $mainTableAlias, string $mainTable): void
+    {
+        // HAVING cümlesi genellikle grup fonksiyonları içerir, ancak yine de temel sütun adları önemlidir
+        $this->extractColumnsFromLogicalExpression($havingClause, $tables, $havingColumns, $mainTableAlias, $mainTable);
+
+        // Agregat fonksiyonlar içindeki sütunları da bul
+        preg_match_all('/(COUNT|SUM|AVG|MIN|MAX)\s*\(\s*(?:DISTINCT\s+)?(?:`?([a-zA-Z0-9_]+)`?\.)?`?([a-zA-Z0-9_]+)`?\s*\)/i', $havingClause, $aggregateMatches, PREG_SET_ORDER);
+
+        foreach ($aggregateMatches as $match) {
+            $alias = !empty($match[2]) ? $match[2] : $mainTableAlias;
+            $column = $match[3];
+
+            if (isset($tables[$alias])) {
+                $table = $tables[$alias];
+                $havingColumns[] = [
+                    'table' => $table,
+                    'column' => $column,
+                    'alias' => $alias,
+                ];
+            } else {
+                // Alias belirtilmemişse, ana tabloyu kullan
+                $havingColumns[] = [
+                    'table' => $mainTable,
+                    'column' => $column,
+                    'alias' => $mainTableAlias,
+                ];
+            }
+        }
+    }
+
+    /**
+     * GROUP BY ifadelerini analiz eder
+     *
+     * @param string $groupByClause
+     * @param array $tables
+     * @param array &$groupByColumns
+     * @param string $mainTableAlias
+     * @param string $mainTable
+     * @return void
+     */
+    protected function analyzeGroupByClause(string $groupByClause, array $tables, array &$groupByColumns, string $mainTableAlias, string $mainTable): void
+    {
+        // table.column formatındaki GROUP BY öğelerini bul
+        preg_match_all('/(`?([a-zA-Z0-9_]+)`?\.`?([a-zA-Z0-9_]+)`?)/i', $groupByClause, $matches, PREG_SET_ORDER);
+
+        foreach ($matches as $match) {
+            $alias = $match[2];
+            $column = $match[3];
+
+            if (isset($tables[$alias])) {
+                $table = $tables[$alias];
+                $groupByColumns[] = [
+                    'table' => $table,
+                    'column' => $column,
+                    'alias' => $alias,
+                ];
+            }
+        }
+
+        // Sadece column adı olan GROUP BY öğeleri için
+        preg_match_all('/(?<![\.a-zA-Z0-9_])\s*`?([a-zA-Z0-9_]+)`?\s*(?:,|$)/i', $groupByClause, $columnOnlyMatches);
+
+        if (!empty($columnOnlyMatches[1])) {
+            foreach ($columnOnlyMatches[1] as $column) {
+                // Rakamları atla (pozisyonel GROUP BY için)
+                if (!is_numeric($column)) {
+                    $groupByColumns[] = [
+                        'table' => $mainTable,
+                        'column' => $column,
+                        'alias' => $mainTableAlias,
+                    ];
+                }
+            }
+        }
+    }
+
+    /**
+     * ORDER BY ifadelerini analiz eder
+     *
+     * @param string $orderByClause
+     * @param array $tables
+     * @param array &$orderByColumns
+     * @param string $mainTableAlias
+     * @param string $mainTable
+     * @return void
+     */
+    protected function analyzeOrderByClause(string $orderByClause, array $tables, array &$orderByColumns, string $mainTableAlias, string $mainTable): void
+    {
+        // table.column formatındaki ORDER BY öğelerini bul
+        preg_match_all('/(`?([a-zA-Z0-9_]+)`?\.`?([a-zA-Z0-9_]+)`?)(?:\s+(?:ASC|DESC))?/i', $orderByClause, $matches, PREG_SET_ORDER);
+
+        foreach ($matches as $match) {
+            $alias = $match[2];
+            $column = $match[3];
+
+            if (isset($tables[$alias])) {
+                $table = $tables[$alias];
+                $orderByColumns[] = [
+                    'table' => $table,
+                    'column' => $column,
+                    'alias' => $alias,
+                ];
+            }
+        }
+
+        // Sadece column adı olan ORDER BY öğeleri için
+        preg_match_all('/(?<![\.a-zA-Z0-9_])\s*`?([a-zA-Z0-9_]+)`?(?:\s+(?:ASC|DESC))?\s*(?:,|$)/i', $orderByClause, $columnOnlyMatches);
+
+        if (!empty($columnOnlyMatches[1])) {
+            foreach ($columnOnlyMatches[1] as $column) {
+                // Rakamları atla (pozisyonel ORDER BY için)
+                if (!is_numeric($column)) {
+                    $orderByColumns[] = [
+                        'table' => $mainTable,
+                        'column' => $column,
+                        'alias' => $mainTableAlias,
+                    ];
+                }
+            }
+        }
+    }
+
+    /**
+     * Alt sorguları (subquery) çıkar ve ayrıştır
+     *
+     * @param string $sql
+     * @return void
+     */
+    protected function extractAndParseSubqueries(string $sql): void
+    {
+        // FROM ifadesi içindeki alt sorguları bul (örn. FROM (SELECT ...) AS subquery)
+        preg_match_all('/\bFROM\s+\(([^()]+(?:\([^()]*\)[^()]*)*?)\)\s+(?:AS\s+)?([a-zA-Z0-9_]+)/is', $sql, $fromSubqueries, PREG_SET_ORDER);
+
+        foreach ($fromSubqueries as $match) {
+            $subquery = $match[1];
+            $alias = $match[2];
+
+            // Alt sorguyu analiz et
+            $this->parseQuery($subquery);
+        }
+
+        // JOIN ifadesi içindeki alt sorguları bul
+        preg_match_all('/\bJOIN\s+\(([^()]+(?:\([^()]*\)[^()]*)*?)\)\s+(?:AS\s+)?([a-zA-Z0-9_]+)/is', $sql, $joinSubqueries, PREG_SET_ORDER);
+
+        foreach ($joinSubqueries as $match) {
+            $subquery = $match[1];
+            $alias = $match[2];
+
+            // Alt sorguyu analiz et
+            $this->parseQuery($subquery);
+        }
+
+        // WHERE koşulundaki alt sorguları bul (IN, EXISTS, vb.)
+        preg_match_all('/\b(?:IN|EXISTS)\s*\(([^()]+(?:\([^()]*\)[^()]*)*?)\)/is', $sql, $whereSubqueries, PREG_SET_ORDER);
+
+        foreach ($whereSubqueries as $match) {
+            $subquery = $match[1];
+
+            // Eğer bu bir SELECT ifadesi ise
+            if (preg_match('/^\s*SELECT/i', $subquery)) {
+                // Alt sorguyu analiz et
+                $this->parseQuery($subquery);
+            }
+        }
+
+        // SELECT içindeki alt sorguları bul
+        preg_match_all('/\bSELECT\s+.+?\bFROM\b.+?\b(WHERE|GROUP|ORDER|LIMIT|$)/is', $sql, $selectSubqueries, PREG_SET_ORDER);
+
+        foreach ($selectSubqueries as $selectMatch) {
+            $selectSubquery = $selectMatch[0];
+
+            // Parantez içindeki alt sorguları bul
+            preg_match_all('/\(\s*(SELECT\s+.+?)\s*\)/is', $selectSubquery, $nestedSubqueries, PREG_SET_ORDER);
+
+            foreach ($nestedSubqueries as $nestedMatch) {
+                $nestedSubquery = $nestedMatch[1];
+                // Alt sorguyu analiz et
+                $this->parseQuery($nestedSubquery);
+            }
+        }
+
+        // WITH (CTE) ifadelerini bul
+        preg_match_all('/\bWITH\s+([a-zA-Z0-9_]+)\s+AS\s+\(([^()]+(?:\([^()]*\)[^()]*)*?)\)/is', $sql, $cteSubqueries, PREG_SET_ORDER);
+
+        foreach ($cteSubqueries as $match) {
+            $cteName = $match[1];
+            $subquery = $match[2];
+
+            // CTE alt sorgusunu analiz et
+            $this->parseQuery($subquery);
+        }
     }
 
     /**
@@ -419,28 +1175,88 @@ class QueryAnalyzer
 
         // Her tablo için indeks önerileri oluştur
         foreach ($queryData['tables'] as $alias => $tableName) {
+            // Alt sorgu tabloları için öneri oluşturma
+            if (isset($queryData['subquery_tables']) && in_array($tableName, $queryData['subquery_tables'])) {
+                continue;
+            }
+
             if (!isset($this->tableSuggestions[$tableName])) {
                 $this->tableSuggestions[$tableName] = [];
             }
 
             // JOIN sütunları - Bu tabloya ait olanları ekle
-            foreach ($queryData['join_columns'] as $col) {
-                if ($col['table'] === $tableName && !in_array($col['column'], $this->tableSuggestions[$tableName])) {
-                    $this->tableSuggestions[$tableName][] = $col['column'];
+            if (isset($queryData['join_columns'])) {
+                foreach ($queryData['join_columns'] as $col) {
+                    if ($col['table'] === $tableName && !in_array($col['column'], $this->tableSuggestions[$tableName])) {
+                        $this->tableSuggestions[$tableName][] = $col['column'];
+                    }
                 }
             }
 
             // WHERE sütunları - Bu tabloya ait olanları ekle
-            foreach ($queryData['where_columns'] as $col) {
-                if (is_array($col) && $col['table'] === $tableName && !in_array($col['column'], $this->tableSuggestions[$tableName])) {
-                    $this->tableSuggestions[$tableName][] = $col['column'];
+            if (isset($queryData['where_columns'])) {
+                foreach ($queryData['where_columns'] as $col) {
+                    // Dizi veya string olarak gelmiş olabilir
+                    if (is_array($col) && $col['table'] === $tableName && !in_array($col['column'], $this->tableSuggestions[$tableName])) {
+                        $this->tableSuggestions[$tableName][] = $col['column'];
+                    } elseif (is_string($col) && $tableName === $queryData['table'] && !in_array($col, $this->tableSuggestions[$tableName])) {
+                        // Ana tablo için string olarak gelmiş olabilir
+                        $this->tableSuggestions[$tableName][] = $col;
+                    }
                 }
             }
 
-            // ORDER BY ve GROUP BY sütunları - Bu tabloya ait olanları ekle
-            foreach ($queryData['order_group_columns'] as $col) {
-                if ($col['table'] === $tableName && !in_array($col['column'], $this->tableSuggestions[$tableName])) {
-                    $this->tableSuggestions[$tableName][] = $col['column'];
+            // ORDER BY sütunları - Bu tabloya ait olanları ekle
+            if (isset($queryData['order_by_columns'])) {
+                foreach ($queryData['order_by_columns'] as $col) {
+                    if ($col['table'] === $tableName && !in_array($col['column'], $this->tableSuggestions[$tableName])) {
+                        $this->tableSuggestions[$tableName][] = $col['column'];
+                    }
+                }
+            }
+
+            // GROUP BY sütunları - Bu tabloya ait olanları ekle
+            if (isset($queryData['group_by_columns'])) {
+                foreach ($queryData['group_by_columns'] as $col) {
+                    if ($col['table'] === $tableName && !in_array($col['column'], $this->tableSuggestions[$tableName])) {
+                        $this->tableSuggestions[$tableName][] = $col['column'];
+                    }
+                }
+            }
+
+            // HAVING sütunları - Bu tabloya ait olanları ekle
+            if (isset($queryData['having_columns'])) {
+                foreach ($queryData['having_columns'] as $col) {
+                    if ($col['table'] === $tableName && !in_array($col['column'], $this->tableSuggestions[$tableName])) {
+                        $this->tableSuggestions[$tableName][] = $col['column'];
+                    }
+                }
+            }
+
+            // IN clause sütunları - Bu tabloya ait olanları ekle
+            if (isset($queryData['in_clause_columns'])) {
+                foreach ($queryData['in_clause_columns'] as $col) {
+                    if ($col['table'] === $tableName && !in_array($col['column'], $this->tableSuggestions[$tableName])) {
+                        $this->tableSuggestions[$tableName][] = $col['column'];
+                    }
+                }
+            }
+
+            // CASE/WHEN/IF sütunları - Bu tabloya ait olanları ekle
+            if (isset($queryData['case_when_columns'])) {
+                foreach ($queryData['case_when_columns'] as $col) {
+                    if ($col['table'] === $tableName && !in_array($col['column'], $this->tableSuggestions[$tableName])) {
+                        $this->tableSuggestions[$tableName][] = $col['column'];
+                    }
+                }
+            }
+
+            // SELECT sütunları - Bu tabloya ait olanları ekle
+            if (isset($queryData['select_columns'])) {
+                foreach ($queryData['select_columns'] as $col) {
+                    if ($col['table'] === $tableName && !in_array($col['column'], $this->tableSuggestions[$tableName])) {
+                        $this->tableSuggestions[$tableName][] = $col['column'];
+                    }
                 }
             }
         }

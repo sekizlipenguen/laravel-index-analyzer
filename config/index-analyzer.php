@@ -139,8 +139,8 @@ return [
     |
     */
     'suggestions' => [
-        'min_query_time' => 0.5,  // Millisaniye cinsinden, bu değerden daha hızlı sorgular önerilmez
-        'min_query_count' => 5,   // Bu sayıdan daha az tekrarlanan sorgular önerilmez
+        'min_query_time' => 1000,  // Millisaniye cinsinden, bu değerden daha hızlı sorgular önerilmez
+        'min_query_count' => 1,   // Bu sayıdan daha az tekrarlanan sorgular önerilmez
         'ignore_tables' => [],    // Bu tablolar için indeks önerileri oluşturulmaz
     ],
 ];
