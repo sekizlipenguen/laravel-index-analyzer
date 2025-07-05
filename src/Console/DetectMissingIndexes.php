@@ -15,6 +15,7 @@ use PhpParser\ParserFactory;
 use PhpParser\PrettyPrinter\Standard;
 use SekizliPenguen\IndexAnalyzer\Helpers\FileValidator;
 use SekizliPenguen\IndexAnalyzer\Helpers\ImportAnalyzer;
+use SekizliPenguen\IndexAnalyzer\Helpers\ModelFinder;
 use SekizliPenguen\IndexAnalyzer\Helpers\QuerySanitizer;
 use Throwable;
 
@@ -39,6 +40,11 @@ class DetectMissingIndexes extends Command
             $this->info('Index Analyzer yapılandırma tarafından devre dışı bırakılmış.');
             return;
         }
+
+        // Projedeki tüm modelleri ve trait'leri önbelleğe al
+        $this->info('🔎 Proje içindeki model ve trait\'leri tespit ediyor...');
+        ModelFinder::cacheAllModels();
+        ModelFinder::cacheAllTraits();
 
         // Başlangıç zamanını kaydet
         $startTime = microtime(true);
@@ -208,6 +214,11 @@ class DetectMissingIndexes extends Command
 
             // Import satırlarını oluştur
             $importLines = [];
+
+            // Modeller ve trait'ler için otomatik import
+            $autoImports = ModelFinder::getAllImports();
+
+            // İki import listesini birleştir
             if (is_array($imports)) {
                 foreach (array_unique($imports) as $import) {
                     if (is_string($import) && trim($import) !== '') {
@@ -216,8 +227,50 @@ class DetectMissingIndexes extends Command
                 }
             }
 
+            // Otomatik importları ekle
+            foreach ($autoImports as $import) {
+                if (!in_array($import, $importLines)) {
+                    $importLines[] = $import;
+                }
+            }
+
+            // Aynı isimli sınıf ve trait'lerin çakışmasını önlemek için alias ekle
+            $importLines = QuerySanitizer::processImportsWithAlias($importLines);
+
+            // Sorgu öncesi genel hata çözücüler
+            $fixerCode = "";
+
+            // Yaygın sınıf ve trait'ler için stub oluştur
+            if (preg_match_all('/::class|new\s+([\w\\]+)|([\w\\]+)::|use\s+([\w\\]+)(?:\s*;|\s+(?:in))/i', $query, $classMatches)) {
+                $allClasses = array_merge(
+                    $classMatches[1] ?? [],
+                    $classMatches[2] ?? [],
+                    $classMatches[3] ?? []
+                );
+
+                foreach ($allClasses as $className) {
+                    if (empty($className)) continue;
+
+                    $className = trim($className);
+                    if (in_array($className, ['self', 'static', 'parent']) || str_starts_with($className, '$')) {
+                        continue;
+                    }
+
+                    // Sınıf için stub oluştur
+                    if (!class_exists($className) && !interface_exists($className) && !trait_exists($className)) {
+                        // Model stub'ı oluştur
+                        $fixerCode .= "if (!class_exists('{$className}')) { class {$className} extends \Illuminate\Database\Eloquent\Model {} }\n";
+                    }
+                }
+            }
+
             // Sorgu dosyasını oluştur
             $script = "<?php\n\n";
+
+            // Hata çözücü kodunu ekle (eğer varsa)
+            if (!empty($fixerCode)) {
+                $script .= "// Sınıf ve trait çözücüleri\n{$fixerCode}\n";
+            }
 
             // İmport satırlarını ekle
             if (!empty($importLines)) {
@@ -289,8 +342,39 @@ class DetectMissingIndexes extends Command
                     $missingEntity = null;
                     if (preg_match('/Trait "([^"]+)" not found/', $e->getMessage(), $entityMatches)) {
                         $missingEntity = $entityMatches[1];
+                        // Bulunamayan trait'i öneri listesine ekle
+                        ModelFinder::addTraitMapping($missingEntity, "App\\Traits\\{$missingEntity}");
                     } elseif (preg_match('/Class "([^"]+)" not found/', $e->getMessage(), $entityMatches)) {
                         $missingEntity = $entityMatches[1];
+                        // Bulunamayan sınıfı öneri listesine ekle
+                        ModelFinder::addModelMapping($missingEntity, "App\\Models\\{$missingEntity}");
+                    }
+
+                    // Otomatik model sınıfları oluştur
+                    $stubScript = $script;
+
+                    if ($missingEntity) {
+                        if (str_contains($e->getMessage(), 'Trait')) {
+                            // Eksik trait için stub ekle
+                            $stubScript = "<?php\n\n// Eksik trait için stub\ntrait {$missingEntity} { function productModel() { return new \Illuminate\Database\Eloquent\Builder(new \Illuminate\Database\Eloquent\Model); } }\n\n" . $stubScript;
+                        } else {
+                            // Eksik sınıf için stub ekle
+                            $stubScript = "<?php\n\n// Eksik sınıf için stub\nclass {$missingEntity} extends \Illuminate\Database\Eloquent\Model {}\n\n" . $stubScript;
+                        }
+
+                        // Otomatik oluşturulan stub ile yeniden dene
+                        File::put($filename . '.stub', $stubScript);
+
+                        try {
+                            // Stub dosyasını çalıştır
+                            $stubResult = @include $filename . '.stub';
+                            if (is_array($stubResult)) {
+                                // Eğer başarılı olursa, bu sonuçları kullan
+                                $result = $stubResult;
+                            }
+                        } catch (\Throwable $stubError) {
+                            // Stub çalıştırma başarısız oldu, devam et
+                        }
                     }
 
                     // Sorguyu atla, ama dosyayı kaydet
@@ -737,6 +821,12 @@ class DetectMissingIndexes extends Command
      */
     protected function checkTraitExists(string $traitName): bool
     {
+        // ModelFinder içinden kontrol et
+        $fullTraitName = ModelFinder::getTraitClass($traitName);
+        if ($fullTraitName && trait_exists($fullTraitName)) {
+            return true;
+        }
+
         // Base namespace'ler - yaygın Laravel ve kendi projeniz için
         $namespaces = [
             '',
@@ -753,6 +843,8 @@ class DetectMissingIndexes extends Command
         foreach ($namespaces as $namespace) {
             $fullName = $namespace . $traitName;
             if (trait_exists($fullName)) {
+                // Bulunan trait'i ModelFinder'a ekle
+                ModelFinder::addTraitMapping($traitName, $fullName);
                 return true;
             }
         }
@@ -768,22 +860,30 @@ class DetectMissingIndexes extends Command
         // Anonim sınıf kullanımı var mı?
         if (strpos($query, 'new class') !== false) {
             // Trait'leri çıkar
-            preg_match_all('/\(new\s+class[^{]*{[^}]*use\s+([\w\\]+);/is', $query, $anonTraitMatches);
+            preg_match_all('/(?:\()?new\s+class[^{]*{[^}]*use\s+([\w\\]+);/is', $query, $anonTraitMatches);
 
-            // Eğer trait içeriyorsa ve trait'ler mevcut değilse, mock sınıf kullan
+            // Eğer trait içeriyorsa, trait'i işleyelim
             if (!empty($anonTraitMatches[1])) {
                 $modifiedQuery = $query;
+
+                // Trait tanımlama kodu - eksik trait'ler için stub oluştur
+                $traitStubs = "";
+
                 foreach ($anonTraitMatches[1] as $trait) {
-                    if (!$this->checkTraitExists($trait)) {
-                        // Trait'i bir mock ile değiştir
-                        $mockTraitName = md5($trait);
-                        $modifiedQuery = str_replace(
-                            "use {$trait};",
-                            "/* use {$trait} */ // Trait {$trait} bulunamadı - devre dışı bırakıldı",
-                            $modifiedQuery
-                        );
+                    // ModelFinder'dan trait'i al
+                    $fullTraitName = ModelFinder::getTraitClass($trait);
+
+                    if (!$fullTraitName || !$this->checkTraitExists($fullTraitName)) {
+                        // Trait bulunamadı, bir stub oluştur
+                        $traitStubs .= "if (!trait_exists('{$trait}')) { trait {$trait} { function productModel() { return new \Illuminate\Database\Eloquent\Builder(new \Illuminate\Database\Eloquent\Model); } } }\n";
                     }
                 }
+
+                // Eğer stub oluşturulmuşsa, sorgunun başına ekle
+                if (!empty($traitStubs)) {
+                    $modifiedQuery = $traitStubs . $modifiedQuery;
+                }
+
                 return $modifiedQuery;
             }
         }

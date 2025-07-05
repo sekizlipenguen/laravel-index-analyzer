@@ -5,6 +5,12 @@ namespace SekizliPenguen\IndexAnalyzer\Helpers;
 class ImportAnalyzer
 {
     /**
+     * Çakışan sınıf adlarını saklamak için önbellek
+     * @var array
+     */
+    protected static $conflictCache = [];
+
+    /**
      * Dosyadaki namespace'i ve use ifadelerini analiz eder
      *
      * @param string $filePath Dosya yolu
@@ -22,6 +28,44 @@ class ImportAnalyzer
 
         $content = file_get_contents($filePath);
         return self::analyzeContent($content);
+    }
+
+    /**
+     * Çakışan sınıf ve trait adlarını kontrol eder
+     *
+     * @param string $className Sınıf adı
+     * @param string $namespace Tam yol
+     * @return bool Çakışma var mı
+     */
+    public static function isConflictingName(string $className, string $namespace): bool
+    {
+        // Bilinen çakışan isimler
+        $knownConflicts = [
+            'Coupon' => [
+                'App\\Models\\Coupon\\Coupon',
+                'App\\Traits\\Basket\\Coupon'
+            ],
+            'Cache' => [
+                'App\\Traits\\Cache\\Cache',
+                'Illuminate\\Support\\Facades\\Cache'
+            ],
+            'ShippingMethod' => [
+                'App\\Models\\PaymentDelivery\\ShippingMethod\\ShippingMethod',
+                'App\\Traits\\PaymentDelivery\\ShippingMethod'
+            ],
+            'ProductCache' => [
+                'App\\Traits\\Cache\\ProductCache',
+                'App\\Traits\\ProductCache'
+            ]
+        ];
+
+        // Önbellekte var mı kontrol et
+        if (!isset(static::$conflictCache[$className])) {
+            static::$conflictCache[$className] = isset($knownConflicts[$className]) &&
+                count($knownConflicts[$className]) > 1;
+        }
+
+        return static::$conflictCache[$className];
     }
 
     /**
