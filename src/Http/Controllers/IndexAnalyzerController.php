@@ -80,6 +80,9 @@ class IndexAnalyzerController extends Controller
      */
     public function generateSuggestions(Request $request)
     {
+        // Tüm sorguları al
+        $queries = app('index-analyzer')->getQueryLogger()->getQueries();
+
         $suggestions = IndexAnalyzer::generateSuggestions();
         $statements = IndexAnalyzer::generateIndexStatements();
 
@@ -87,6 +90,10 @@ class IndexAnalyzerController extends Controller
             'success' => true,
             'suggestions' => $suggestions,
             'statements' => $statements,
+            'debug' => [
+                'query_count' => count($queries),
+                'queries' => array_slice($queries, 0, 10) // İlk 10 sorguyu göster
+            ]
         ]);
     }
 

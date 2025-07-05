@@ -43,17 +43,17 @@ class QueryAnalyzer
     {
         $suggestions = [];
         $ignoredTables = config('index-analyzer.suggestions.ignore_tables', []);
-        $minQueryTime = config('index-analyzer.suggestions.min_query_time', 50);
-        $minQueryCount = config('index-analyzer.suggestions.min_query_count', 3);
+        $minQueryTime = config('index-analyzer.suggestions.min_query_time', 0); // 0'a düşürüldü
+        $minQueryCount = config('index-analyzer.suggestions.min_query_count', 1); // 1'e düşürüldü
 
         // Group queries by table and conditions
         $groupedQueries = [];
 
         foreach ($queries as $query) {
-            // Skip fast queries
-            if ($query['time'] < $minQueryTime) {
-                continue;
-            }
+            // Hızlı sorguları atlama kontrolü kaldırıldı
+            // if ($query['time'] < $minQueryTime) {
+            //     continue;
+            // }
 
             $parsedQuery = $this->parseQuery($query['sql']);
 

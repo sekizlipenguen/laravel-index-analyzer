@@ -50,9 +50,16 @@ class IndexAnalyzer
      */
     public function startCapturing()
     {
+        // Mevcut sorguları temizle
+        $this->queryLogger->clearQueries();
+
+        // DB::listen ile tüm sorguları dinle
         DB::listen(function ($query) {
             $this->queryLogger->logQuery($query);
         });
+
+        // Başarıyla başladığını döndür
+        return true;
     }
 
     /**
@@ -85,6 +92,7 @@ class IndexAnalyzer
     public function generateSuggestions()
     {
         $queries = $this->queryLogger->getQueries();
+        dd($queries);
         return $this->queryAnalyzer->analyze($queries);
     }
 

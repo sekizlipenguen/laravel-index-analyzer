@@ -12,9 +12,9 @@ class QueryLogger
     /**
      * The application instance.
      *
-     * @var \Illuminate\Foundation\Application
+     * @var Application
      */
-    protected $app;
+    protected Application $app;
 
     /**
      * Stored queries.
@@ -26,7 +26,7 @@ class QueryLogger
     /**
      * Create a new query logger instance.
      *
-     * @param \Illuminate\Foundation\Application $app
+     * @param Application $app
      * @return void
      */
     public function __construct(Application $app)
@@ -37,7 +37,7 @@ class QueryLogger
     /**
      * Log a SQL query.
      *
-     * @param \Illuminate\Database\Events\QueryExecuted $query
+     * @param QueryExecuted $query
      * @return void
      */
     public function logQuery(QueryExecuted $query)
@@ -72,9 +72,7 @@ class QueryLogger
     protected function shouldIgnoreQuery($sql)
     {
         $ignoredPatterns = [
-            'SHOW FULL TABLES',
             'INFORMATION_SCHEMA',
-            'SHOW INDEXES',
             'pg_catalog',
         ];
 
@@ -101,7 +99,7 @@ class QueryLogger
     /**
      * Generate a unique hash for the query.
      *
-     * @param \Illuminate\Database\Events\QueryExecuted $query
+     * @param QueryExecuted $query
      * @return string
      */
     protected function generateQueryHash(QueryExecuted $query)
@@ -134,6 +132,12 @@ class QueryLogger
      */
     protected function storeQuery(array $queryData)
     {
+        // Hash'i debug için ekleyelim
+        $queryData['debug_hash'] = $queryData['hash'];
+
+        // Her sorguyu benzersiz yapmak için timestamp ekle
+        $queryData['hash'] = $queryData['hash'] . '_' . microtime(true);
+
         $this->queries[] = $queryData;
 
         // Store to the configured storage
@@ -199,7 +203,7 @@ class QueryLogger
      *
      * @return void
      */
-    public function clearQueries()
+    public function clearQueries(): void
     {
         $this->queries = [];
 
