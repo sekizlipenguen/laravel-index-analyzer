@@ -1,27 +1,10 @@
-# Laravel Index Analyzer - .gitignore
-
-/vendor/
-/composer.lock
-
-# IDE / Editor
-.idea/
-*.sublime-project
-*.sublime-workspace
-.vscode/
-.phpstorm.meta.php
-
-# System
-.DS_Store
-Thumbs.db
-
-# Logs & Cache
-/storage/
-*.log
-*.cache
-
-# PHPUnit
+/vendor
+/node_modules
+/.idea
+/.vscode
+/.vagrant
+.env
 .phpunit.result.cache
-
-# OS
-ehthumbs.db
-Icon?
+composer.lock
+phpunit.xml
+phpstan.neon

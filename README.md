@@ -1,160 +1,51 @@
-# Laravel Index Analyzer 🔍
+# Laravel Index Analyzer
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/sekizlipenguen/laravel-index-analyzer.svg)](https://packagist.org/packages/sekizlipenguen/laravel-index-analyzer)
-[![Total Downloads](https://img.shields.io/packagist/dt/sekizlipenguen/laravel-index-analyzer.svg)](https://packagist.org/packages/sekizlipenguen/laravel-index-analyzer)
-![PHP Version](https://img.shields.io/badge/PHP-8.0%2B-blue)
-![Laravel Version](https://img.shields.io/badge/Laravel-9.0%2B-orange)
+📊 Otomatik SQL Index Öneri Sistemi
 
-Laravel Index Analyzer, veritabanı sorgu performansını optimize etmek için eksik indeksleri otomatik olarak tespit eden güçlü bir Laravel komut aracıdır. AST (Abstract Syntax Tree) analizi kullanarak projenizde tüm Eloquent ve DB sorgu zincirlerini tarar ve veritabanı şemanızı inceleyerek eksik indeksleri belirler.
+Laravel tabanlı projelerde kullanılan tüm SQL sorgularını gerçek kullanıcı deneyimi üzerinden (frontend navigasyon, AJAX istekleri dahil) toplayıp, eksik index'leri tespit eden ve bunlara karşılık SQL önerileri sunan bir paket.
 
 ## Özellikler
 
-- 🧠 **AST Tabanlı Analiz**: Projenin tüm PHP dosyalarını tarar ve tüm veritabanı sorgularını tespit eder
-- 🔍 **Akıllı İndeks Tespiti**: WHERE, JOIN, ORDER BY ve GROUP BY kullanılan sütunları tespit eder
-- 📊 **Etki Analizi**: Önerilen indeksler için tablo boyutu, kardinalite ve etki analizini gösterir
-- 🧩 **Kompozit İndeks Önerileri**: Birlikte kullanılan sütunlar için kompozit indeks önerileri oluşturur
-- 🛠️ **Otomatik Uygulama**: Tespit edilen indeksleri otomatik olarak uygulayabilir
-- 💾 **SQL Dışa Aktarım**: Önerilen indeksleri SQL dosyası olarak dışa aktarabilir
-- 📋 **Ayrıntılı Raporlama**: Performans optimizasyonları için kapsamlı raporlar sunar
+- Tarayıcı entegrasyonu ile gerçek kullanıcı deneyimini simüle eder
+- Otomatik JS DebugBar ile kolay kullanım
+- Tüm SQL sorgularını analiz ederek eksik indeksleri tespit eder
+- Önerilen indeksler için SQL komutları sunar
+- Kolay yapılandırma (.env ve config dosyası ile)
 
 ## Kurulum
-
-Composer ile kurulum yapabilirsiniz:
 
 ```bash
 composer require sekizlipenguen/laravel-index-analyzer
 ```
 
-Konfigürasyon dosyasını yayınlamak için (opsiyonel):
+Config dosyasını yayınlamak için:
 
 ```bash
-php artisan vendor:publish --provider="SekizliPenguen\IndexAnalyzer\IndexAnalyzerServiceProvider"
+php artisan vendor:publish --provider="SekizliPenguen\LaravelIndexAnalyzer\LaravelIndexAnalyzerServiceProvider"
 ```
 
 ## Kullanım
 
-Ana komut şu şekildedir:
+1. `.env` dosyanıza aşağıdaki ayarı ekleyin:
 
-```bash
-php artisan optimize:index
+```
+INDEX_ANALYZER_ENABLED=true
 ```
 
-### Seçenekler
+2. Uygulamanızda debugbar'ı görmek için sadece geliştirme ortamında kullanmanız önerilir.
 
-- `--execute`: Önerilen indeksleri otomatik olarak uygular
-- `--sql=dosya_adi.sql`: Ekran yerine belirtilen dosyaya SQL çıktısı verir
-- `--dry-run`: Simülasyon modu - hiçbir şey çalıştırmaz veya kaydetmez
-- `--model=User`: Sadece belirli bir modeli eşleştiren sorguları tarar
-- `--impact-analysis`: İndeks önerileri için etki analizi yapar
-- `--composite`: Kompozit indeks önerileri oluşturur
-- `--cardinality-threshold=25`: Kardinalite analizi için eşik değerini belirler
-- `--help`: Tüm seçenekleri görüntüler
-
-### Örnekler
-
-Tüm proje sorgularını analiz edip önerileri görmek için:
-
-```bash
-php artisan optimize:index
-```
-
-Detaylı etki analizi yapmak için:
-
-```bash
-php artisan optimize:index --impact-analysis
-```
-
-Kompozit indeks önerileri de dahil olmak üzere tüm önerileri SQL dosyasına aktarmak için:
-
-```bash
-php artisan optimize:index --sql=database/missing-indexes.sql --composite
-```
-
-Önerilen tüm indeksleri otomatik olarak uygulamak için:
-
-```bash
-php artisan optimize:index --execute
-```
+3. Tarayıcıda sayfalarınızı ziyaret ederken debugbar'ı kullanarak:
+   - "Tarama Başlat" butonu ile otomatik taramayı başlatın
+   - "İndexleri Çıkar" butonu ile önerileri görüntüleyin
 
 ## Yapılandırma
 
-`config/index-analyzer.php` dosyasında araç ayarlarını özelleştirebilirsiniz:
+`config/index-analyzer.php` dosyası ile özelleştirme yapabilirsiniz:
 
 ```php
-return [
-    'enabled' => true,
-    'scan_path' => 'base_path',
-    'exclude' => [
-        'vendor',
-        'node_modules',
-        'storage',
-        'tests',
-    ],
-    'model_paths' => [
-        'app/Models',
-    ],
-    // Diğer ayarlar...
-];
+// Detaylı yapılandırma seçenekleri için config dosyasına bakınız
 ```
-
-## Nasıl Çalışır?
-
-1. Kod tarama: PHP-Parser kullanarak projenizin kaynak kodunu tarar
-2. Sorgu tespiti: Model sorguları ve DB ifadelerini algılar
-3. SQL analizi: Tespit edilen sorguları SQL'e dönüştürür
-4. İndeks analizi: Eksik indeksleri belirler
-5. Optimizasyon: Gerekli indeksleri önerir veya uygular
-6. Sonuçları ekranda gösterir veya SQL dosyasına aktarır
-
-### Sorun Giderme
-
-Analizde sık karşılaşılan sorunlar:
-
-- **Sınıf Bulunamadı Hataları**: Karmaşık sorgu yapıları veya trait kullanan modeller için, sorgu simülasyon dosyalarında ilgili sınıflar import edilmeyebilir. Bu durumda `--verbose` parametresi ile çalıştırarak detaylı hata mesajlarını görebilirsiniz.
-- **Eksik Tablolar**: Modellerin karşılık geldiği tablolar veritabanında yoksa uyarı alabilirsiniz.
-- **Özel Sorgu Yapıları**: Makroları veya özel geliştirilmiş sorgu genişletmelerini kullanan sorgular düzgün simüle edilemeyebilir.
-
-## Katkıda Bulunma
-
-Katkılarınızı memnuniyetle karşılıyoruz! Lütfen bir pull request göndermeden önce test etmeyi unutmayın.
-
-## Yapılandırma
-
-`config/index-analyzer.php` dosyasında araç ayarlarını özelleştirebilirsiniz:
-
-```php
-return [
-    'enabled' => true,
-    'scan_path' => 'base_path',
-    'exclude' => [
-        'vendor',
-        'node_modules',
-        'storage',
-        'tests',
-    ],
-    'model_paths' => [
-        'app/Models',
-    ],
-    // Diğer ayarlar...
-];
-```
-
-## Nasıl Çalışır?
-
-1. Kod tarama: PHP-Parser kullanarak projenizin kaynak kodunu tarar
-2. Sorgu tespiti: Model sorguları ve DB ifadelerini algılar
-3. SQL analizi: Tespit edilen sorguları SQL'e dönüştürür
-4. İndeks analizi: Eksik indeksleri belirler
-5. Optimizasyon: Gerekli indeksleri önerir veya uygular
-
-## Katkıda Bulunma
-
-Katkılarınızı memnuniyetle karşılıyoruz! Lütfen bir pull request göndermeden önce test etmeyi unutmayın.
 
 ## Lisans
 
-MIT Lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına bakın.
-
----
-
-Sekizli Penguen tarafından ❤️ ile geliştirilmiştir.
+MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına bakınız.
