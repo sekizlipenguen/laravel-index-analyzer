@@ -147,7 +147,7 @@ class QueryLogger
      * @param string $hash
      * @return bool
      */
-    protected function isDuplicateQuery($hash)
+    protected function isDuplicateQuery(string $hash): bool
     {
         // Memory'deki sorguları kontrol et
         foreach ($this->queries as $query) {
@@ -158,15 +158,32 @@ class QueryLogger
 
         // Dosyada da kontrol et (eğer dosya depolama kullanılıyorsa)
         if (config('index-analyzer.storage') === 'file') {
+            // Önbellek dosyası oluştur/kontrol et
+            $hashCachePath = $this->getHashCachePath();
+
+            // Hash'i önbellekte ara
+            if (File::exists($hashCachePath)) {
+                $hashCache = json_decode(File::get($hashCachePath), true) ?: [];
+                if (in_array($hash, $hashCache)) {
+                    return true;
+                }
+            }
+
+            // Log dosyasında ara (önbellekte yoksa)
             $logPath = config('index-analyzer.log_path', storage_path('logs/index-analyzer.log'));
 
             if (File::exists($logPath)) {
                 try {
-                    // Dosyanın son 10 satırını kontrol et - performans için sınırlı tutuyoruz
-                    $lines = $this->getTailOfFile($logPath, 10);
+                    // Dosya çok büyükse sadece son 50 satırını kontrol et
+                    $filesize = filesize($logPath);
+                    $checkLines = ($filesize > 50000) ? 50 : 200; // 50KB'dan büyükse sınırla
+
+                    $lines = $this->getTailOfFile($logPath, $checkLines);
                     foreach ($lines as $line) {
                         $decoded = json_decode($line, true);
                         if ($decoded && isset($decoded['debug_hash']) && $decoded['debug_hash'] === $hash) {
+                            // Hash'i önbelleğe ekle
+                            $this->addHashToCache($hash);
                             return true;
                         }
                     }
@@ -177,6 +194,45 @@ class QueryLogger
         }
 
         return false;
+    }
+
+    /**
+     * Get the path to the hash cache file
+     *
+     * @return string
+     */
+    protected function getHashCachePath()
+    {
+        $directory = storage_path('framework/cache');
+        if (!File::exists($directory)) {
+            File::makeDirectory($directory, 0755, true);
+        }
+
+        return $directory . '/index-analyzer-hashes.json';
+    }
+
+    /**
+     * Add a hash to the cache file
+     *
+     * @param string $hash
+     * @return void
+     */
+    protected function addHashToCache($hash)
+    {
+        $cachePath = $this->getHashCachePath();
+        $hashCache = [];
+
+        if (File::exists($cachePath)) {
+            $hashCache = json_decode(File::get($cachePath), true) ?: [];
+        }
+
+        // Hash'i ekle ve maksimum 1000 hash tut
+        $hashCache[] = $hash;
+        if (count($hashCache) > 1000) {
+            $hashCache = array_slice($hashCache, -1000);
+        }
+
+        File::put($cachePath, json_encode($hashCache));
     }
 
     /**
@@ -266,11 +322,29 @@ class QueryLogger
             return;
         }
 
+        // Çok yakın zamanda aynı hash'li sorguyu kaydetme
+        if (isset($queryData['debug_hash'])) {
+            $hash = $queryData['debug_hash'];
+            $this->addHashToCache($hash);
+        }
+
         try {
             // Dizin kontrolü yap ve dizin yoksa oluştur
             $directory = dirname($logPath);
             if (!File::exists($directory)) {
                 File::makeDirectory($directory, 0755, true);
+            }
+
+            // Dosya çok büyükse, yeni dosya oluştur
+            $maxSize = config('index-analyzer.max_log_size', 10 * 1024 * 1024); // Varsayılan 10MB
+            if (File::exists($logPath) && filesize($logPath) > $maxSize) {
+                // Eski dosyayı rotasyon yap
+                $timestamp = date('Y-m-d-His');
+                $backupPath = str_replace('.log', "-{$timestamp}.log", $logPath);
+                File::move($logPath, $backupPath);
+
+                // Eski dosyaları temizle (en son 5 dosyayı tut)
+                $this->cleanupOldLogFiles($logPath, 5);
             }
 
             // JSON verisini oluştur
@@ -280,6 +354,36 @@ class QueryLogger
             File::append($logPath, $jsonData);
         } catch (\Exception $e) {
             // Hata durumunda sessizce devam et
+        }
+    }
+
+    /**
+     * Eski log dosyalarını temizle
+     *
+     * @param string $basePath
+     * @param int $keepCount
+     * @return void
+     */
+    protected function cleanupOldLogFiles($basePath, $keepCount = 5)
+    {
+        $directory = dirname($basePath);
+        $filename = basename($basePath, '.log');
+
+        // Bu log dosyasına ait tüm eski sürümleri bul
+        $pattern = $directory . '/' . $filename . '-*.log';
+        $files = glob($pattern);
+
+        // Tarihe göre sırala (en yeni önce)
+        usort($files, function ($a, $b) {
+            return filemtime($b) - filemtime($a);
+        });
+
+        // Sadece en yeni $keepCount kadar dosyayı tut, diğerlerini sil
+        if (count($files) > $keepCount) {
+            $filesToDelete = array_slice($files, $keepCount);
+            foreach ($filesToDelete as $file) {
+                File::delete($file);
+            }
         }
     }
 

@@ -46,13 +46,10 @@ class IndexAnalyzer
     /**
      * Start capturing database queries.
      *
-     * @return void
+     * @return bool
      */
-    public function startCapturing()
+    public function startCapturing(): bool
     {
-        // Mevcut sorguları temizle
-        //$this->queryLogger->clearQueries();
-
         // DB::listen ile tüm sorguları dinle
         DB::listen(function ($query) {
             $this->queryLogger->logQuery($query);
