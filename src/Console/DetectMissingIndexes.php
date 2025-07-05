@@ -13,6 +13,7 @@ use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\NodeVisitorAbstract;
 use PhpParser\ParserFactory;
 use PhpParser\PrettyPrinter\Standard;
+use SekizliPenguen\IndexAnalyzer\Helpers\ImportAnalyzer;
 use Throwable;
 
 class DetectMissingIndexes extends Command
@@ -75,7 +76,8 @@ class DetectMissingIndexes extends Command
 
         $this->info("📝 Toplam {$phpFiles->count()} PHP dosyası bulundu, sorguları çıkarma işlemi başlatılıyor...");
 
-        $queries = $this->extractQueryChains($phpFiles);
+        $querySources = [];
+        $queries = $this->extractQueryChains($phpFiles, $querySources);
 
         // Sorgu sayısını sınırla
         $queryLimit = (int)$this->option('limit') ?: 1000; // Varsayılan değer ekle
@@ -124,8 +126,44 @@ class DetectMissingIndexes extends Command
             $filename = $outputPath . '/query_' . str_pad($counter, 3, '0', STR_PAD_LEFT) . '_' . substr(md5($query), 0, 6) . '.php';
 
             // Temel importları daima ekle
-            $imports = ['Illuminate\\Support\\Facades\\DB'];
-            $imports = ['Illuminate\\Support\\Facades\\DB'];
+
+            // Kaynak dosyadan importları analiz et
+            if (isset($querySources[$index])) {
+                $sourceFile = $querySources[$index];
+                if (file_exists($sourceFile)) {
+                    $analysis = ImportAnalyzer::analyzeFile($sourceFile);
+
+                    // Namespace'e dayalı importları ekle
+                    foreach ($analysis['imports'] as $fullNamespace) {
+                        $imports[] = $fullNamespace;
+                    }
+
+                    // Sorgu içindeki sınıf ve trait kullanımlarını analiz et
+                    $usages = ImportAnalyzer::extractClassAndTraitUsages($query);
+
+                    // Sorgu içindeki trait'leri ekle
+                    foreach ($usages['traits'] as $trait) {
+                        // Trait tam yolunu bulmaya çalış
+                        if (!str_contains($trait, '\\') && isset($analysis['imports'][$trait])) {
+                            $imports[] = $analysis['imports'][$trait];
+                        } elseif (!str_contains($trait, '\\') && $analysis['namespace']) {
+                            // Namespace içinde olabilir
+                            $imports[] = $analysis['namespace'] . '\\' . $trait;
+                        } else {
+                            $imports[] = $trait;
+                        }
+                    }
+
+                    // Sorgu içindeki sınıfları ekle
+                    foreach ($usages['classes'] as $class) {
+                        if (!str_contains($class, '\\') && isset($analysis['imports'][$class])) {
+                            $imports[] = $analysis['imports'][$class];
+                        } elseif (str_contains($class, '\\')) {
+                            $imports[] = $class;
+                        }
+                    }
+                }
+            }
 
             // Trait kullanımlarını tespit et
             preg_match_all('/use\s+([\w\\]+)(?:\s*;|\s+(?:in))/i', $query, $traitMatches);
@@ -165,7 +203,7 @@ class DetectMissingIndexes extends Command
             File::put($filename, $script);
             // Immediately execute and collect SQL queries
             try {
-                $result = include $filename;
+                $result = @include $filename;
                 if (is_array($result)) {
                     $content = '';
                     foreach ($result as $entry) {
@@ -551,8 +589,8 @@ class DetectMissingIndexes extends Command
         preg_match('/namespace\s+([^;]+);/i', $content, $nsMatch);
         $namespace = $nsMatch[1] ?? null;
 
-        // use ifadelerini bul
-        preg_match_all('/^use\s+([^;]+);/m', $content, $matches);
+        // use ifadelerini bul - hem normal importları hem trait kullanımlarını destekle
+        preg_match_all('/^use\s+([^;{]+);/m', $content, $matches);
 
         if (!empty($matches[1])) {
             foreach ($matches[1] as $match) {
@@ -568,16 +606,55 @@ class DetectMissingIndexes extends Command
             }
         }
 
+        // Trait kullanımlarını bul (sınıf içinde)
+        preg_match_all('/use\s+([^;{]+);/m', $content, $traitMatches);
+        if (!empty($traitMatches[1])) {
+            foreach ($traitMatches[1] as $trait) {
+                $trait = trim($trait);
+                // Eğer bu bir sınıf içindeki trait kullanımı ise
+                if (!str_contains($trait, '\\')) {
+                    // Namespace mevcut ise, namespace içindeki trait'i kontrol et
+                    if ($namespace) {
+                        $imports[$trait] = $namespace . '\\' . $trait;
+                    } // Alternatif olarak, aynı isimde bir use statement var mı kontrol et
+                    elseif (isset($imports[$trait])) {
+                        // Zaten eklenmiş, bir şey yapma
+                    } else {
+                        // Tam yolu bulamadığımız için en azından adını ekleyelim
+                        $imports[$trait] = $trait;
+                    }
+                }
+            }
+        }
+
+        // Sınıf içi trait kullanımlarını ara
+        preg_match_all('/class\s+[\w]+[^{]*{[^}]*use\s+([\w\\,\s]+);/is', $content, $classTraitMatches);
+        if (!empty($classTraitMatches[1])) {
+            foreach ($classTraitMatches[1] as $traitList) {
+                $traits = array_map('trim', explode(',', $traitList));
+                foreach ($traits as $trait) {
+                    if (!str_contains($trait, '\\') && $namespace) {
+                        $imports[$trait] = $namespace . '\\' . $trait;
+                    } else {
+                        $imports[$trait] = $trait;
+                    }
+                }
+            }
+        }
+
         return $imports;
     }
 
-    protected function extractQueryChains($phpFiles): array
+    protected function extractQueryChains($phpFiles, &$querySources = []): array
     {
         $parser = (new ParserFactory)->createForNewestSupportedVersion();
         $queries = [];
         $querySources = []; // Sorguların kaynak dosyalarını takip et
         $pretty = new Standard();
         $modelPaths = config('index-analyzer.model_paths', ['app/Models']);
+
+        // querySources değişkenini fonksiyon içinde referans olarak kullan
+        $querySources = [];
 
         foreach ($phpFiles as $file) {
             try {
@@ -586,18 +663,20 @@ class DetectMissingIndexes extends Command
 
                 $traverser = new NodeTraverser();
                 $traverser->addVisitor(new NameResolver());
-                $traverser->addVisitor(new class($queries, $pretty, $modelPaths) extends NodeVisitorAbstract {
+                $traverser->addVisitor(new class($queries, $pretty, $modelPaths, $querySources) extends NodeVisitorAbstract {
                     public $queries;
                     public $pretty;
                     public $modelPaths;
+                    public $querySources;
                     public $currentChain = [];
                     public $inQuery = false;
 
-                    public function __construct(&$queries, $pretty, $modelPaths)
+                    public function __construct(&$queries, $pretty, $modelPaths, &$querySources)
                     {
                         $this->queries = &$queries;
                         $this->pretty = $pretty;
                         $this->modelPaths = $modelPaths;
+                        $this->querySources = &$querySources;
                     }
 
                     private function isModelClass($className): bool
@@ -637,8 +716,7 @@ class DetectMissingIndexes extends Command
                                         $queryIndex = count($this->queries);
                                         $this->queries[] = $fullChain;
                                         // Kaynak dosyayı sakla
-                                        global $querySources;
-                                        $querySources[$queryIndex] = $file->getRealPath();
+                                        $this->querySources[$queryIndex] = $file->getRealPath();
                                     }
                                 } else if ($node->var instanceof Node\Expr\MethodCall) {
                                     // Daha derin bir sorgu zinciri olabilir
