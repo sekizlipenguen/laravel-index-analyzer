@@ -51,7 +51,7 @@ class IndexAnalyzer
     public function startCapturing()
     {
         // Mevcut sorguları temizle
-        $this->queryLogger->clearQueries();
+        //$this->queryLogger->clearQueries();
 
         // DB::listen ile tüm sorguları dinle
         DB::listen(function ($query) {
