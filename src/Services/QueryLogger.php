@@ -71,13 +71,45 @@ class QueryLogger
      */
     protected function shouldIgnoreQuery($sql)
     {
+        // Sistem tablolarını ve diğer özel sorguları yoksay
         $ignoredPatterns = [
             'INFORMATION_SCHEMA',
             'pg_catalog',
+            'sqlite_master',
+            'SHOW TABLES',
+            'SHOW COLUMNS',
+            'SHOW FULL TABLES',
+            'SHOW TABLE STATUS',
+            'SHOW CREATE TABLE',
+            'SHOW VARIABLES',
+            'PRAGMA',
+            'SET NAMES',
+            'SET CHARACTER SET',
+            'SET TIME_ZONE',
+            'SET SESSION',
         ];
 
+        // Bu tabloları da yoksay
+        $ignoredTables = config('index-analyzer.ignored_tables', [
+            'migrations',
+            'jobs',
+            'failed_jobs',
+            'password_resets',
+            'sessions',
+            'personal_access_tokens',
+        ]);
+
+        // İgnore pattern'leri kontrol et
         foreach ($ignoredPatterns as $pattern) {
-            if (Str::contains($sql, $pattern)) {
+            if (Str::contains(strtoupper($sql), strtoupper($pattern))) {
+                return true;
+            }
+        }
+
+        // İgnore tabloları kontrol et
+        foreach ($ignoredTables as $table) {
+            $pattern = "FROM `?{$table}`?";
+            if (preg_match("/{$pattern}/i", $sql)) {
                 return true;
             }
         }
@@ -104,7 +136,9 @@ class QueryLogger
      */
     protected function generateQueryHash(QueryExecuted $query)
     {
-        return md5($query->sql . serialize($query->bindings));
+        // Sadece SQL yapısını hash'le, parametreleri dikkate alma
+        // Bu, aynı sorgunun farklı parametre değerleriyle tekrar kaydedilmesini önler
+        return md5($query->sql);
     }
 
     /**
@@ -115,13 +149,66 @@ class QueryLogger
      */
     protected function isDuplicateQuery($hash)
     {
+        // Memory'deki sorguları kontrol et
         foreach ($this->queries as $query) {
-            if ($query['hash'] === $hash) {
+            if (isset($query['debug_hash']) && $query['debug_hash'] === $hash) {
                 return true;
             }
         }
 
+        // Dosyada da kontrol et (eğer dosya depolama kullanılıyorsa)
+        if (config('index-analyzer.storage') === 'file') {
+            $logPath = config('index-analyzer.log_path', storage_path('logs/index-analyzer.log'));
+
+            if (File::exists($logPath)) {
+                try {
+                    // Dosyanın son 10 satırını kontrol et - performans için sınırlı tutuyoruz
+                    $lines = $this->getTailOfFile($logPath, 10);
+                    foreach ($lines as $line) {
+                        $decoded = json_decode($line, true);
+                        if ($decoded && isset($decoded['debug_hash']) && $decoded['debug_hash'] === $hash) {
+                            return true;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Hata durumunda sadece devam et
+                }
+            }
+        }
+
         return false;
+    }
+
+    /**
+     * Dosyanın son N satırını getir
+     *
+     * @param string $filepath
+     * @param int $lines
+     * @return array
+     */
+    protected function getTailOfFile($filepath, $lines = 10)
+    {
+        $result = [];
+
+        if (!file_exists($filepath)) {
+            return $result;
+        }
+
+        $file = new \SplFileObject($filepath, 'r');
+        $file->seek(PHP_INT_MAX); // Son satıra git
+        $lastLine = $file->key();
+
+        $startLine = max(0, $lastLine - $lines);
+
+        for ($i = $startLine; $i <= $lastLine; $i++) {
+            $file->seek($i);
+            $line = $file->current();
+            if (trim($line) !== '') {
+                $result[] = trim($line);
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -132,15 +219,34 @@ class QueryLogger
      */
     protected function storeQuery(array $queryData)
     {
-        // Hash'i debug için ekleyelim
+        // Orijinal hash'i debug amacıyla sakla
         $queryData['debug_hash'] = $queryData['hash'];
 
         // Her sorguyu benzersiz yapmak için timestamp ekle
         $queryData['hash'] = $queryData['hash'] . '_' . microtime(true);
 
+        // Gereksiz/hassas veri temizleme
+        if (isset($queryData['bindings']) && is_array($queryData['bindings'])) {
+            // Sadece veri tiplerini sakla, gerçek değerleri değil
+            $queryData['bindings'] = array_map(function ($binding) {
+                if (is_string($binding)) {
+                    return '[string]';
+                } elseif (is_numeric($binding)) {
+                    return '[numeric]';
+                } elseif (is_bool($binding)) {
+                    return '[boolean]';
+                } elseif (is_null($binding)) {
+                    return '[null]';
+                } else {
+                    return '[other]';
+                }
+            }, $queryData['bindings']);
+        }
+
+        // Sorguyu hafızada tut
         $this->queries[] = $queryData;
 
-        // Store to the configured storage
+        // Konfigürasyona göre dosyaya kaydet
         if (config('index-analyzer.storage') === 'file') {
             $this->storeToFile($queryData);
         }

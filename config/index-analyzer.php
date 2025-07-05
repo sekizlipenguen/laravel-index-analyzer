@@ -3,6 +3,122 @@
 return [
     /*
     |--------------------------------------------------------------------------
+    | IndexAnalyzer Aktif/Pasif Durumu
+    |--------------------------------------------------------------------------
+    |
+    | Bu paketi etkinleştirmek veya devre dışı bırakmak için bu ayarı kullanın.
+    |
+    */
+    'enabled' => env('INDEX_ANALYZER_ENABLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Rota Öneki
+    |--------------------------------------------------------------------------
+    |
+    | Paket tarafından sağlanan rotaların öneki.
+    |
+    */
+    'route_prefix' => 'index-analyzer',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Middleware
+    |--------------------------------------------------------------------------
+    |
+    | IndexAnalyzer rotaları için kullanılacak middleware'ler.
+    |
+    */
+    'middleware' => ['web'],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Debug Bar Ayarları
+    |--------------------------------------------------------------------------
+    |
+    | Ekranın altında görünen DebugBar'ın görünümünü özelleştirin.
+    |
+    */
+    'debug_bar' => [
+        'position' => 'bottom', // 'top' veya 'bottom'
+        'theme' => 'light',     // 'light' veya 'dark'
+        'auto_show' => true,    // Otomatik göster veya gizle
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Depolama Ayarları
+    |--------------------------------------------------------------------------
+    |
+    | Sorgu verilerinin nerede saklanacağı.
+    |
+    */
+    'storage' => 'file', // 'memory' veya 'file'
+
+    /*
+    |--------------------------------------------------------------------------
+    | Log Dosya Yolu
+    |--------------------------------------------------------------------------
+    |
+    | 'storage' değeri 'file' olduğunda kullanılacak log dosyası yolu.
+    |
+    */
+    'log_path' => storage_path('logs/index-analyzer.log'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sorgu Optimizasyonu
+    |--------------------------------------------------------------------------
+    |
+    | SQL sorgu kayıt ve analiz sürecini optimize etmek için ayarlar
+    |
+    */
+    'query_optimization' => [
+        'normalize_queries' => true, // Sorguları normalleştir (parametreleri kaldır)
+        'skip_duplicates' => true,  // Aynı yapıda olan sorguları atla
+        'max_query_length' => 500,  // Kaydedilecek maksimum sorgu uzunluğu
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Yoksayılan Tablolar
+    |--------------------------------------------------------------------------
+    |
+    | Bu tablolara ait sorgular kaydedilmez ve analiz edilmez.
+    |
+    */
+    'ignored_tables' => [
+        'migrations',
+        'jobs',
+        'failed_jobs',
+        'password_resets',
+        'sessions',
+        'personal_access_tokens',
+        'cache',
+        'oauth_access_tokens',
+        'oauth_auth_codes',
+        'oauth_clients',
+        'oauth_personal_access_clients',
+        'oauth_refresh_tokens',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Öneriler için Ayarlar
+    |--------------------------------------------------------------------------
+    |
+    | İndeks önerileri için kriterleri belirleyin.
+    |
+    */
+    'suggestions' => [
+        'min_query_time' => 0.5,  // Millisaniye cinsinden, bu değerden daha hızlı sorgular önerilmez
+        'min_query_count' => 5,   // Bu sayıdan daha az tekrarlanan sorgular önerilmez
+        'ignore_tables' => [],    // Bu tablolar için indeks önerileri oluşturulmaz
+    ],
+];
+return [
+    /*
+    |--------------------------------------------------------------------------
     | Index Analyzer Aktifleştirme
     |--------------------------------------------------------------------------
     |
