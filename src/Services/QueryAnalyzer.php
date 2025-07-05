@@ -9,21 +9,21 @@ use Illuminate\Support\Str;
 class QueryAnalyzer
 {
     /**
-     * The application instance.
+     * Uygulama örneği.
      *
      * @var Application
      */
     protected Application $app;
 
     /**
-     * Cached indexes keyed by table name.
+     * Tablo adına göre önbelleğe alınmış indeksler.
      *
      * @var array
      */
     protected array $cachedIndexes = [];
 
     /**
-     * Create a new query analyzer instance.
+     * Yeni bir sorgu analizci örneği oluştur.
      *
      * @param Application $app
      * @return void
@@ -34,7 +34,7 @@ class QueryAnalyzer
     }
 
     /**
-     * Analyze the given queries and generate index suggestions.
+     * Verilen sorguları analiz et ve indeks önerileri oluştur.
      *
      * @param array $queries
      * @return array

@@ -10,14 +10,14 @@ use SekizliPenguen\IndexAnalyzer\Facades\IndexAnalyzer;
 class IndexAnalyzerController extends Controller
 {
     /**
-     * Start a new crawl session.
+     * Yeni bir tarama oturumu başlat.
      *
      * @param Request $request
      * @return JsonResponse
      */
     public function startCrawl(Request $request)
     {
-        // Start a new crawl session
+        // Yeni bir tarama oturumu başlat
         $routes = $this->getApplicationRoutes();
 
         return response()->json([
@@ -28,7 +28,7 @@ class IndexAnalyzerController extends Controller
     }
 
     /**
-     * Get application routes for crawling.
+     * Tarama için uygulama rotalarını al.
      *
      * @return array
      */
@@ -73,7 +73,7 @@ class IndexAnalyzerController extends Controller
     }
 
     /**
-     * Generate index suggestions.
+     * İndeks önerileri oluştur.
      *
      * @param Request $request
      * @return JsonResponse
@@ -112,7 +112,7 @@ class IndexAnalyzerController extends Controller
     }
 
     /**
-     * Record a single query from the frontend.
+     * Ön yüzden tek bir sorguyu kaydet.
      *
      * @param Request $request
      * @return JsonResponse
@@ -125,8 +125,8 @@ class IndexAnalyzerController extends Controller
             'time' => 'required|numeric',
         ]);
 
-        // Record the query manually
-        // This is useful for AJAX requests that the middleware couldn't capture
+        // Sorguyu manuel olarak kaydet
+        // Bu, ara yazılımın yakalayamadığı AJAX istekleri için kullanışlıdır
 
         return response()->json([
             'success' => true,
@@ -135,7 +135,7 @@ class IndexAnalyzerController extends Controller
     }
 
     /**
-     * Clear all stored queries.
+     * Tüm depolanan sorguları temizle.
      *
      * @param Request $request
      * @return JsonResponse

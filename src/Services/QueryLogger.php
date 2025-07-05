@@ -10,21 +10,21 @@ use Illuminate\Support\Str;
 class QueryLogger
 {
     /**
-     * The application instance.
+     * Uygulama örneği.
      *
      * @var Application
      */
     protected Application $app;
 
     /**
-     * Stored queries.
+     * Depolanan sorgular.
      *
      * @var array
      */
     protected array $queries = [];
 
     /**
-     * Create a new query logger instance.
+     * Yeni bir sorgu günlükleyici örneği oluştur.
      *
      * @param Application $app
      * @return void
@@ -35,14 +35,14 @@ class QueryLogger
     }
 
     /**
-     * Log a SQL query.
+     * SQL sorgusunu günlüğe kaydet.
      *
      * @param QueryExecuted $query
      * @return void
      */
     public function logQuery(QueryExecuted $query)
     {
-        // Ignore certain query types
+        // Belirli sorgu türlerini yoksay
         if ($this->shouldIgnoreQuery($query->sql)) {
             return;
         }
@@ -57,14 +57,14 @@ class QueryLogger
             'timestamp' => microtime(true),
         ];
 
-        // Only log unique queries based on hash
+        // Hash'e göre sadece benzersiz sorguları kaydet
         if (!$this->isDuplicateQuery($queryData['hash'])) {
             $this->storeQuery($queryData);
         }
     }
 
     /**
-     * Check if a query should be ignored.
+     * Bir sorgunun yoksayılması gerekip gerekmediğini kontrol et.
      *
      * @param string $sql
      * @return bool
@@ -99,14 +99,14 @@ class QueryLogger
             'personal_access_tokens',
         ]);
 
-        // İgnore pattern'leri kontrol et
+        // Yoksayma desenlerini kontrol et
         foreach ($ignoredPatterns as $pattern) {
             if (Str::contains(strtoupper($sql), strtoupper($pattern))) {
                 return true;
             }
         }
 
-        // İgnore tabloları kontrol et
+        // Yoksayılan tabloları kontrol et
         foreach ($ignoredTables as $table) {
             $pattern = "FROM `?{$table}`?";
             if (preg_match("/{$pattern}/i", $sql)) {
@@ -118,7 +118,7 @@ class QueryLogger
     }
 
     /**
-     * Format the SQL query.
+     * SQL sorgusunu biçimlendir.
      *
      * @param string $sql
      * @return string
@@ -129,7 +129,7 @@ class QueryLogger
     }
 
     /**
-     * Generate a unique hash for the query.
+     * Sorgu için benzersiz bir hash oluştur.
      *
      * @param QueryExecuted $query
      * @return string
@@ -142,14 +142,14 @@ class QueryLogger
     }
 
     /**
-     * Check if the query with the given hash has already been logged.
+     * Verilen hash'e sahip sorgunun zaten kaydedilip kaydedilmediğini kontrol et.
      *
      * @param string $hash
      * @return bool
      */
     protected function isDuplicateQuery(string $hash): bool
     {
-        // Memory'deki sorguları kontrol et
+        // Bellekteki sorguları kontrol et
         foreach ($this->queries as $query) {
             if (isset($query['debug_hash']) && $query['debug_hash'] === $hash) {
                 return true;
@@ -188,7 +188,7 @@ class QueryLogger
                         }
                     }
                 } catch (\Exception $e) {
-                    // Hata durumunda sadece devam et
+                    // Hata durumunda sessizce devam et
                 }
             }
         }
@@ -197,7 +197,7 @@ class QueryLogger
     }
 
     /**
-     * Get the path to the hash cache file
+     * Hash önbellek dosyasının yolunu al
      *
      * @return string
      */
@@ -212,7 +212,7 @@ class QueryLogger
     }
 
     /**
-     * Add a hash to the cache file
+     * Önbellek dosyasına bir hash ekle
      *
      * @param string $hash
      * @return void
@@ -268,17 +268,17 @@ class QueryLogger
     }
 
     /**
-     * Store the query data.
+     * Sorgu verilerini depola.
      *
      * @param array $queryData
      * @return void
      */
     protected function storeQuery(array $queryData)
     {
-        // Orijinal hash'i debug amacıyla sakla
+        // Orijinal hash'i hata ayıklama amacıyla sakla
         $queryData['debug_hash'] = $queryData['hash'];
 
-        // Her sorguyu benzersiz yapmak için timestamp ekle
+        // Her sorguyu benzersiz yapmak için zaman damgası ekle
         $queryData['hash'] = $queryData['hash'] . '_' . microtime(true);
 
         // Gereksiz/hassas veri temizleme
@@ -299,7 +299,7 @@ class QueryLogger
             }, $queryData['bindings']);
         }
 
-        // Sorguyu hafızada tut
+        // Sorguyu bellekte tut
         $this->queries[] = $queryData;
 
         // Konfigürasyona göre dosyaya kaydet
@@ -309,7 +309,7 @@ class QueryLogger
     }
 
     /**
-     * Store the query data to a file.
+     * Sorgu verilerini bir dosyaya kaydet.
      *
      * @param array $queryData
      * @return void

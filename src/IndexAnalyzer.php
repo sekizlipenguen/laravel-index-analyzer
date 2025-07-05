@@ -10,28 +10,28 @@ use SekizliPenguen\IndexAnalyzer\Services\QueryLogger;
 class IndexAnalyzer
 {
     /**
-     * The application instance.
+     * Uygulama örneği.
      *
      * @var \Illuminate\Foundation\Application
      */
     protected $app;
 
     /**
-     * The query logger instance.
+     * Sorgu günlükleyici örneği.
      *
      * @var \SekizliPenguen\IndexAnalyzer\Services\QueryLogger
      */
     protected $queryLogger;
 
     /**
-     * The query analyzer instance.
+     * Sorgu analizci örneği.
      *
      * @var \SekizliPenguen\IndexAnalyzer\Services\QueryAnalyzer
      */
     protected $queryAnalyzer;
 
     /**
-     * Create a new index analyzer instance.
+     * Yeni bir indeks analizci örneği oluştur.
      *
      * @param \Illuminate\Foundation\Application $app
      * @return void
@@ -44,7 +44,7 @@ class IndexAnalyzer
     }
 
     /**
-     * Start capturing database queries.
+     * Veritabanı sorgularını yakalamaya başla.
      *
      * @return bool
      */
@@ -60,7 +60,7 @@ class IndexAnalyzer
     }
 
     /**
-     * Generate SQL statements for the suggested indexes.
+     * Önerilen indeksler için SQL ifadeleri oluştur.
      *
      * @return array
      */
@@ -82,7 +82,7 @@ class IndexAnalyzer
     }
 
     /**
-     * Generate index suggestions based on the captured queries.
+     * Yakalanan sorgulara dayalı indeks önerileri oluştur.
      *
      * @return array
      */
@@ -93,7 +93,7 @@ class IndexAnalyzer
     }
 
     /**
-     * Build an ADD INDEX SQL statement.
+     * Bir ADD INDEX SQL ifadesi oluştur.
      *
      * @param string $table
      * @param array $columns
@@ -111,7 +111,7 @@ class IndexAnalyzer
     }
 
     /**
-     * Get the query logger instance.
+     * Sorgu günlükleyici örneğini al.
      *
      * @return \SekizliPenguen\IndexAnalyzer\Services\QueryLogger
      */
