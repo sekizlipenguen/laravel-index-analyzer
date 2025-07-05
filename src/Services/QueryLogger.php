@@ -21,7 +21,7 @@ class QueryLogger
      *
      * @var array
      */
-    protected $queries = [];
+    protected array $queries = [];
 
     /**
      * Create a new query logger instance.
@@ -444,10 +444,16 @@ class QueryLogger
         $this->queries = [];
 
         if (config('index-analyzer.storage') === 'file') {
+            // Log dosyasını temizle
             $logPath = config('index-analyzer.log_path');
-
             if (File::exists($logPath)) {
                 File::put($logPath, '');
+            }
+
+            // Hash önbelleğini de temizle
+            $hashCachePath = $this->getHashCachePath();
+            if (File::exists($hashCachePath)) {
+                File::delete($hashCachePath);
             }
         }
     }
