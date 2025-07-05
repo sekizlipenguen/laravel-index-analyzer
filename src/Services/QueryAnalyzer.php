@@ -55,19 +55,13 @@ class QueryAnalyzer
         $groupedQueries = [];
 
         foreach ($queries as $query) {
-            // Hızlı sorguları atlama kontrolü kaldırıldı
-            // if ($query['time'] < $minQueryTime) {
-            //     continue;
-            // }
 
             $parsedQuery = $this->parseQuery($query['sql']);
-
             if (empty($parsedQuery) || in_array($parsedQuery['table'], $ignoredTables)) {
                 continue;
             }
 
             $key = $parsedQuery['table'] . ':' . implode(',', $parsedQuery['where_columns']);
-
             if (!isset($groupedQueries[$key])) {
                 $groupedQueries[$key] = [
                     'table' => $parsedQuery['table'],
@@ -100,7 +94,6 @@ class QueryAnalyzer
                 'index_name' => $this->generateIndexName($group['table'], $group['columns']),
             ];
         }
-
         return $suggestions;
     }
 

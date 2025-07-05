@@ -396,6 +396,7 @@ class QueryLogger
     {
         // If using file storage, load queries from file
         if (config('index-analyzer.storage') === 'file') {
+
             return $this->loadQueriesFromFile();
         }
 
@@ -430,7 +431,6 @@ class QueryLogger
             // Dosya okuma hatası durumunda boş dizi döndür
             return [];
         }
-
         return $queries;
     }
 
