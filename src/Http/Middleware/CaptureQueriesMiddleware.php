@@ -19,7 +19,6 @@ class CaptureQueriesMiddleware
     public function handle(Request $request, Closure $next): mixed
     {
         if (config('index-analyzer.enabled', false)) {
-            dd(2);
             // Facade kullanımı
             IndexAnalyzer::startCapturing();
             // Log dosyasına bilgi ekle

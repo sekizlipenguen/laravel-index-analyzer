@@ -51,9 +51,7 @@ INDEX_ANALYZER_ENABLED=true
    - `/index-analyzer` adresine giderek kontrol paneline erişin (ör: `https://siteadi.com/index-analyzer`)
    - "Tarama Başlat" butonuna tıklayarak otomatik rotaları taramayı başlatın
    - Elle ek sayfalarda gezinti yapın (özellikle giriş gerektiren sayfalar için önemli)
-   - "Analizleri Göster" butonuna tıklayarak detaylı SQL analizlerini görüntüleyin
-   - "İndeks Önerileri" bölümünden hazır SQL kodlarını alabilirsiniz
-   - "Dışa Aktar" butonu ile tüm analizleri JSON formatında kaydedebilirsiniz
+   - İndeks önerilerini ve SQL komutlarını görüntüleyin
 
 ## Nasıl Çalışır?
 
@@ -136,6 +134,7 @@ Bu paket, geliştirme ortamında kullanılmak üzere tasarlanmıştır. Performa
 
 ```json
 {
+   "success": true,
    "suggestions": [
       {
          "table": "users",
@@ -143,8 +142,6 @@ Bu paket, geliştirme ortamında kullanılmak üzere tasarlanmıştır. Performa
             "email",
             "status"
          ],
-         "query_count": 28,
-         "avg_time": 3.45,
          "index_name": "users_email_status_idx"
       },
       {
@@ -153,8 +150,6 @@ Bu paket, geliştirme ortamında kullanılmak üzere tasarlanmıştır. Performa
             "user_id",
             "created_at"
          ],
-         "query_count": 15,
-         "avg_time": 12.7,
          "index_name": "orders_user_id_created_at_idx"
       }
    ],
