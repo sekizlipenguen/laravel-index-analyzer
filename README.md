@@ -2,6 +2,11 @@
 
 📊 Otomatik SQL Index Öneri Sistemi
 
+[![Latest Stable Version](https://img.shields.io/packagist/v/sekizlipenguen/laravel-index-analyzer.svg)](https://packagist.org/packages/sekizlipenguen/laravel-index-analyzer)
+[![Total Downloads](https://img.shields.io/packagist/dt/sekizlipenguen/laravel-index-analyzer.svg)](https://packagist.org/packages/sekizlipenguen/laravel-index-analyzer)
+[![GitHub stars](https://img.shields.io/github/stars/sekizlipenguen/laravel-index-analyzer.svg)](https://github.com/sekizlipenguen/laravel-index-analyzer/stargazers)
+[![License](https://img.shields.io/packagist/l/sekizlipenguen/laravel-index-analyzer.svg)](https://packagist.org/packages/sekizlipenguen/laravel-index-analyzer)
+
 [![Laravel 9.x](https://img.shields.io/badge/Laravel-9.x-red.svg)](https://laravel.com/docs/9.x)
 [![Laravel 10.x](https://img.shields.io/badge/Laravel-10.x-red.svg)](https://laravel.com/docs/10.x)
 [![Laravel 11.x](https://img.shields.io/badge/Laravel-11.x-red.svg)](https://laravel.com/docs/11.x)
