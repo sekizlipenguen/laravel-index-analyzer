@@ -540,29 +540,11 @@
         const languageCode = this.getAttribute('data-language-code');
         console.log('Seçilen dil:', languageCode);
 
-        // CSRF token'ı al
-        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        // Rota önekini al
+        const prefix = '{{ config("index-analyzer.route_prefix", "index-analyzer") }}';
 
-        // Dil değiştirme isteği gönder
-        fetch('/index-analyzer/change-language', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': token,
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify({locale: languageCode}),
-        }).then(response => response.json()).then(data => {
-          if (data.success) {
-            console.log('Dil değiştirildi:', data.message);
-            // Başarılı olursa sayfayı yenile
-            window.location.reload();
-          } else {
-            console.error('Dil değiştirme hatası:', data.message);
-          }
-        }).catch(error => {
-          console.error('Dil değiştirme hatası:', error);
-        });
+        // GET isteği ile dil değiştirme - en basit ve güvenilir yöntem
+        window.location.href = `/${prefix}/set-locale/${languageCode}`;
       });
     });
   });

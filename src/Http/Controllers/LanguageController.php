@@ -33,24 +33,46 @@ class LanguageController extends Controller
      */
     public function changeLanguage(Request $request): JsonResponse
     {
+        // Debug bilgilerini kaydet
+        $debugInfo = [
+            'isAjax' => $request->ajax(),
+            'headers' => $request->headers->all(),
+            'input' => $request->all(),
+            'method' => $request->method(),
+            'path' => $request->path(),
+            'url' => $request->url(),
+            'ip' => $request->ip(),
+        ];
+
+        \Log::info('changeLanguage çağrıldı', $debugInfo);
+
+        // Locale değerini al (JSON body veya URL parametresi olabilir)
         $locale = $request->input('locale');
+
+        // Debug için locale bilgisini kaydet
+        \Log::info('Alınan locale değeri: ' . ($locale ?? 'null'));
 
         // Desteklenen bir dil mi kontrol et
         $supportedLocales = array_keys(config('language.locales', ['en' => 'English', 'tr' => 'Türkçe']));
 
         if (!in_array($locale, $supportedLocales)) {
+            \Log::warning('Desteklenmeyen dil kodu: ' . $locale);
             $locale = config('language.default_locale', 'en');
+            \Log::info('Varsayılan dil kullanılıyor: ' . $locale);
         }
 
         // Oturumda dil tercihini sakla
         Session::put('locale', $locale);
+        \Log::info('Oturuma dil kaydedildi: ' . $locale);
 
         // Dili ayarla
         App::setLocale($locale);
+        \Log::info('Uygulama dili değiştirildi: ' . $locale);
 
         return response()->json([
             'success' => true,
             'locale' => $locale,
+            'debug' => $debugInfo,
             'message' => 'Language changed to ' . config('language.locales.' . $locale, $locale)
         ]);
     }

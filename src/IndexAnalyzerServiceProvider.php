@@ -59,6 +59,7 @@ class IndexAnalyzerServiceProvider extends ServiceProvider
             __DIR__ . '/../resources/lang' => resource_path('lang/vendor/index-analyzer'),
         ], 'lang');
 
+        // Ana uygulama rotalarını yükle (base_path = proje kök dizini)
         $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
 
         $this->app['router']->aliasMiddleware('capture-queries', CaptureQueriesMiddleware::class);

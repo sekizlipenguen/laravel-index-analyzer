@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use SekizliPenguen\IndexAnalyzer\Http\Controllers\DashboardController;
 use SekizliPenguen\IndexAnalyzer\Http\Controllers\IndexAnalyzerController;
+use SekizliPenguen\IndexAnalyzer\Http\Controllers\LanguageController;
 
 $routePrefix = config('index-analyzer.route_prefix', 'index-analyzer');
 $middleware = config('index-analyzer.middleware', ['web']);
@@ -27,4 +28,16 @@ Route::group([
 
     Route::post('/clear-queries', [IndexAnalyzerController::class, 'clearQueries'])
         ->name('index-analyzer.clear-queries');
+
+    // Dil değiştirme rotaları - tüm yolları destekle
+    Route::get('/languages', [LanguageController::class, 'getSupportedLanguages'])
+        ->name('index-analyzer.languages');
+    Route::post('/change-language', [LanguageController::class, 'changeLanguage'])
+        ->name('index-analyzer.change-language');
+    Route::post('/set-locale/{locale}', [LanguageController::class, 'setLocale'])
+        ->name('index-analyzer.set-locale');
+    Route::get('/set-locale/{locale}', [LanguageController::class, 'setLocale'])
+        ->name('index-analyzer.get-locale');
+    Route::get('/locale/{locale}', [LanguageController::class, 'setLocale'])
+        ->name('index-analyzer.locale');
 });
