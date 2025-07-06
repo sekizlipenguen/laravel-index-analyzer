@@ -90,7 +90,7 @@ return [
     'debug_bar' => [
         'position' => 'bottom', // 'top' veya 'bottom'
         'theme' => 'light',     // 'light' veya 'dark'
-        'auto_show' => true,    // Otomatik göster veya gizle
+        'auto_show' => false,    // Otomatik göster veya gizle
     ],
 
     /*
