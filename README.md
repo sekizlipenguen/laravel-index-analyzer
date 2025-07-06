@@ -43,19 +43,18 @@ To publish the config file:
 php artisan vendor:publish --provider="SekizliPenguen\IndexAnalyzer\IndexAnalyzerServiceProvider"
 ```
 
-## Ekran Görüntüleri
+## Screenshots
 
 ### Dashboard
-
 ![Dashboard](screenshots/img.png)
 
-### Tarama Süreci
+### Scanning Process
 
-![Tarama Süreci](screenshots/img_2.png)
+![Scanning Process](screenshots/img_2.png)
 
-### İndeks Önerileri
+### Index Suggestions
 
-![İndeks Önerileri](screenshots/img_1.png)
+![Index Suggestions](screenshots/img_1.png)
 
 ### Usage
 
