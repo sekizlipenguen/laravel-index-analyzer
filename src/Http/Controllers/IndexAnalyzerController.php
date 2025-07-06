@@ -27,7 +27,7 @@ class IndexAnalyzerController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => __('index-analyzer.crawling_started'),
+            'message' => __('index-analyzer::index-analyzer.crawling_started'),
             'routes' => $routes,
             'locale' => $locale
         ]);
@@ -99,7 +99,7 @@ class IndexAnalyzerController extends Controller
                 'success' => true,
                 'suggestions' => [],
                 'statements' => [],
-                'message' => __('index-analyzer.no_queries_recorded'),
+                'message' => __('index-analyzer::index-analyzer.no_queries_recorded'),
                 'debug' => [
                     'query_count' => 0,
                     'queries' => []
@@ -121,14 +121,14 @@ class IndexAnalyzerController extends Controller
             ],
             'locale' => $locale,
             'translations' => [
-                'table' => __('index-analyzer.table'),
-                'columns' => __('index-analyzer.columns'),
-                'index_name' => __('index-analyzer.index_name'),
-                'statements' => __('index-analyzer.statements'),
-                'apply_to_database' => __('index-analyzer.apply_to_database'),
-                'debug_info' => __('index-analyzer.debug_info'),
-                'query_count' => __('index-analyzer.query_count'),
-                'sample_queries' => __('index-analyzer.sample_queries'),
+                'table' => __('index-analyzer::index-analyzer.table'),
+                'columns' => __('index-analyzer::index-analyzer.columns'),
+                'index_name' => __('index-analyzer::index-analyzer.index_name'),
+                'statements' => __('index-analyzer::index-analyzer.statements'),
+                'apply_to_database' => __('index-analyzer::index-analyzer.apply_to_database'),
+                'debug_info' => __('index-analyzer::index-analyzer.debug_info'),
+                'query_count' => __('index-analyzer::index-analyzer.query_count'),
+                'sample_queries' => __('index-analyzer::index-analyzer.sample_queries'),
             ]
         ]);
     }
@@ -156,7 +156,7 @@ class IndexAnalyzerController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => __('index-analyzer.query_recorded'),
+            'message' => __('index-analyzer::index-analyzer.query_recorded'),
             'locale' => $locale
         ]);
     }
@@ -177,8 +177,25 @@ class IndexAnalyzerController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => __('index-analyzer.queries_cleared'),
+            'message' => __('index-analyzer::index-analyzer.queries_cleared'),
             'locale' => $locale
+        ]);
+    }
+
+    /**
+     * Güncel istatistikleri getir.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function getStats(Request $request)
+    {
+        // Tüm sorguları al
+        $queries = app('index-analyzer')->getQueryLogger()->getQueries();
+
+        return response()->json([
+            'success' => true,
+            'queryCount' => count($queries)
         ]);
     }
 }

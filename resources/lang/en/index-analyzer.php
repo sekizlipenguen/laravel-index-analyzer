@@ -16,19 +16,37 @@ return [
     'start_scan' => 'Start Scan',
     'extract_indexes' => 'Extract Indexes',
     'clear_queries' => 'Clear All Queries',
+    'clear_all' => 'Clear All',
     'copy_statements' => 'Copy SQL Statements',
+    'show' => 'Show',
+    'hide' => 'Hide',
 
     // Messages
     'crawling_started' => 'Crawling started',
     'no_queries_recorded' => 'No queries recorded. Please scan first.',
     'queries_cleared' => 'All queries cleared',
     'query_recorded' => 'Query recorded',
+    'confirm_clear_queries' => 'Are you sure you want to clear all recorded queries?',
+    'scanning' => 'Scanning',
+    'pages' => 'pages',
+    'scan_completed' => 'Scan completed!',
+    'scan_starting' => 'Scan starting...',
+    'ready' => 'Ready',
+    'generating_suggestions' => 'Generating index suggestions...',
+    'no_suggestions' => 'No index suggestions found.',
+    'error' => 'Error',
+    'unknown_error' => 'Unknown error',
 
     // Dashboard
     'total_queries' => 'Total Queries',
     'total_suggestions' => 'Suggestions',
     'scanned_routes' => 'Scanned Routes',
     'slow_queries' => 'Slow Queries',
+    'time_ms' => 'Time (ms)',
+    'date' => 'Date',
+    'suggestions_hint' => 'To see index suggestions, first run a scan and then click "Extract Indexes" button.',
+    'routes_to_scan' => 'Routes to Scan',
+    'routes_to_scan_desc' => 'The following routes will be automatically scanned and SQL queries will be recorded:',
 
     // Suggestions
     'table' => 'Table',

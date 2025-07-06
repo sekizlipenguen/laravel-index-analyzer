@@ -29,6 +29,9 @@ Route::group([
     Route::post('/clear-queries', [IndexAnalyzerController::class, 'clearQueries'])
         ->name('index-analyzer.clear-queries');
 
+    Route::get('/get-stats', [IndexAnalyzerController::class, 'getStats'])
+        ->name('index-analyzer.get-stats');
+
     // Dil değiştirme rotaları - tüm yolları destekle
     Route::get('/languages', [LanguageController::class, 'getSupportedLanguages'])
         ->name('index-analyzer.languages');

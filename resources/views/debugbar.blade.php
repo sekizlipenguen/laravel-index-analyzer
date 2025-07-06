@@ -10,16 +10,16 @@
 
       debugBarElement.innerHTML = `
             <div class="ia-debug-bar-header">
-                <div class="ia-logo">Laravel Index Analyzer</div>
+                <div class="ia-logo">{{ __('index-analyzer::index-analyzer.title') }}</div>
                 <div class="ia-actions">
-                    <button id="ia-start-crawl" class="ia-btn ia-btn-primary">Taramayı Başlat</button>
-                    <button id="ia-generate-indexes" class="ia-btn ia-btn-success">İndeksleri Çıkar</button>
-                    <button id="ia-clear-queries" class="ia-btn ia-btn-danger">Temizle</button>
-                    <button id="ia-toggle" class="ia-btn ia-btn-secondary">Gizle</button>
+                    <button id="ia-start-crawl" class="ia-btn ia-btn-primary">{{ __('index-analyzer::index-analyzer.start_scan') }}</button>
+                    <button id="ia-generate-indexes" class="ia-btn ia-btn-success">{{ __('index-analyzer::index-analyzer.extract_indexes') }}</button>
+                    <button id="ia-clear-queries" class="ia-btn ia-btn-danger">{{ __('index-analyzer::index-analyzer.clear_all') }}</button>
+                    <button id="ia-toggle" class="ia-btn ia-btn-secondary">{{ __('index-analyzer::index-analyzer.hide') }}</button>
                 </div>
             </div>
             <div class="ia-debug-bar-content">
-                <div id="ia-status" class="ia-status">Hazır</div>
+                <div id="ia-status" class="ia-status">{{ __('index-analyzer::index-analyzer.ready') }}</div>
                 <div id="ia-progress" class="ia-progress">
                     <div id="ia-progress-bar" class="ia-progress-bar" style="width: 0%;"></div>
                 </div>
@@ -215,14 +215,14 @@
       // Toggle debug bar visibility
       toggleBtn.addEventListener('click', () => {
         debugBar.classList.toggle('ia-hidden');
-        toggleBtn.textContent = debugBar.classList.contains('ia-hidden') ? 'Göster' : 'Gizle';
+        toggleBtn.textContent = debugBar.classList.contains('ia-hidden') ? '{{ __('index-analyzer::index-analyzer.show') }}' : '{{ __('index-analyzer::index-analyzer.hide') }}';
       });
 
       // Start crawling
       startCrawlBtn.addEventListener('click', async () => {
         try {
           startCrawlBtn.disabled = true;
-          statusElement.textContent = 'Tarama başlatılıyor...';
+          statusElement.textContent = '{{ __('index-analyzer::index-analyzer.scan_starting') }}';
           resultsElement.style.display = 'none';
 
           const response = await fetch(`/${debugBarSettings.routePrefix}/start-crawl`, {

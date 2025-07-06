@@ -228,23 +228,23 @@
     </div>
 
     <div class="dashboard-card">
-        <h2 class="card-title">Genel Bakış</h2>
+        <h2 class="card-title">{{ __('index-analyzer::index-analyzer.dashboard') }}</h2>
         <div class="stats">
             <div class="stat-card">
-                <div class="stat-value">{{ $queryCount }}</div>
-                <div class="stat-label">Kaydedilen Sorgu</div>
+                <div id="query-count" class="stat-value">{{ $queryCount }}</div>
+                <div class="stat-label">{{ __('index-analyzer::index-analyzer.total_queries') }}</div>
             </div>
         </div>
     </div>
 
     <div class="dashboard-card">
-        <h2 class="card-title">Son Kaydedilen Sorgular</h2>
+        <h2 class="card-title">{{ __('index-analyzer::index-analyzer.sample_queries') }}</h2>
         <table>
             <thead>
             <tr>
                 <th>SQL</th>
-                <th>Süre (ms)</th>
-                <th>Tarih</th>
+                <th>{{ __('index-analyzer::index-analyzer.time_ms') }}</th>
+                <th>{{ __('index-analyzer::index-analyzer.date') }}</th>
             </tr>
             </thead>
             <tbody>
@@ -258,7 +258,7 @@
                 @endforeach
             @else
                 <tr>
-                    <td colspan="3">Henüz kaydedilmiş sorgu bulunmuyor.</td>
+                    <td colspan="3">{{ __('index-analyzer::index-analyzer.no_queries_recorded') }}</td>
                 </tr>
             @endif
             </tbody>
@@ -266,8 +266,8 @@
     </div>
 
     <div class="dashboard-card">
-        <h2 class="card-title">İndeks Önerileri</h2>
-        <p>İndeks önerilerini görmek için önce bir tarama yapın ve ardından "İndeksleri Çıkar" butonuna tıklayın.</p>
+        <h2 class="card-title">{{ __('index-analyzer::index-analyzer.suggestions') }}</h2>
+        <p>{{ __('index-analyzer::index-analyzer.suggestions_hint') }}</p>
         <div id="results"></div>
     </div>
 </div>
@@ -276,11 +276,11 @@
 <div id="routesModal" class="modal">
     <div class="modal-content">
         <span class="close">&times;</span>
-        <h2>Taranacak Rotalar</h2>
-        <p>Aşağıdaki rotalar otomatik olarak taranacak ve SQL sorguları kaydedilecek:</p>
+        <h2>{{ __('index-analyzer::index-analyzer.routes_to_scan') }}</h2>
+        <p>{{ __('index-analyzer::index-analyzer.routes_to_scan_desc') }}</p>
         <div class="routes-list" id="routesList"></div>
         <div id="crawlProgress">
-            <p id="progressText">Tarama başlatılıyor...</p>
+            <p id="progressText">{{ __('index-analyzer::index-analyzer.scan_starting') }}</p>
             <progress id="progressBar" value="0" max="100" style="width: 100%"></progress>
         </div>
     </div>
@@ -345,7 +345,7 @@
     generateIndexesBtn.addEventListener('click', async function() {
       try {
         generateIndexesBtn.disabled = true;
-        resultsElement.textContent = 'İndeks önerileri oluşturuluyor...';
+        resultsElement.textContent = '{{ __('index-analyzer::index-analyzer.generating_suggestions') }}';
 
         const response = await fetch(`/${routePrefix}/generate-suggestions`, {
           method: 'POST',
@@ -365,13 +365,13 @@
             // Add copy button
             const copyBtn = document.createElement('button');
             copyBtn.className = 'btn btn-primary';
-            copyBtn.textContent = 'Kopyala';
+            copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copy_statements') }}';
             copyBtn.style.marginTop = '10px';
             copyBtn.addEventListener('click', () => {
               navigator.clipboard.writeText(statementsText).then(() => {
-                copyBtn.textContent = 'Kopyalandı!';
+                copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copied') }}';
                 setTimeout(() => {
-                  copyBtn.textContent = 'Kopyala';
+                  copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copy_statements') }}';
                 }, 2000);
               });
             });
@@ -380,17 +380,17 @@
             // Add debug info
             if (data.debug && data.debug.query_count) {
               const debugInfo = document.createElement('div');
-              debugInfo.innerHTML = `<br><small>Analiz edilen sorgu sayısı: ${data.debug.query_count}</small>`;
+              debugInfo.innerHTML = `<br><small>{{ __('index-analyzer::index-analyzer.debug_info') }}: ${data.debug.query_count}</small>`;
               resultsElement.appendChild(debugInfo);
             }
           } else {
-            resultsElement.textContent = 'Önerilen indeks bulunamadı.' + (data.message ? ' ' + data.message : '');
+            resultsElement.textContent = '{{ __('index-analyzer::index-analyzer.no_suggestions') }}' + (data.message ? ' ' + data.message : '');
           }
         } else {
-          resultsElement.textContent = 'Hata: ' + (data.message || 'Bilinmeyen hata');
+          resultsElement.textContent = '{{ __('index-analyzer::index-analyzer.error') }}: ' + (data.message || '{{ __('index-analyzer::index-analyzer.unknown_error') }}');
         }
       } catch (error) {
-        resultsElement.textContent = 'Hata: ' + error.message;
+        resultsElement.textContent = '{{ __('index-analyzer::index-analyzer.error') }}: ' + error.message;
         console.error('Generate indexes error:', error);
       } finally {
         generateIndexesBtn.disabled = false;
@@ -398,7 +398,7 @@
     });
 
     clearQueriesBtn.addEventListener('click', async function() {
-      if (!confirm('Tüm kaydedilen sorguları temizlemek istediğinize emin misiniz?')) {
+      if (!confirm('{{ __('index-analyzer::index-analyzer.confirm_clear_queries') }}')) {
         return;
       }
 
@@ -416,13 +416,16 @@
         const data = await response.json();
 
         if (data.success) {
-          alert('Tüm sorgular temizlendi');
-          window.location.reload();
+          document.getElementById('query-count').textContent = '0';
+          alert('{{ __('index-analyzer::index-analyzer.queries_cleared') }}');
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
         } else {
-          alert('Hata: ' + (data.message || 'Bilinmeyen hata'));
+          alert('{{ __('index-analyzer::index-analyzer.error') }}: ' + (data.message || '{{ __('index-analyzer::index-analyzer.unknown_error') }}'));
         }
       } catch (error) {
-        alert('Hata: ' + error.message);
+        alert('{{ __('index-analyzer::index-analyzer.error') }}: ' + error.message);
         console.error('Clear queries error:', error);
       } finally {
         clearQueriesBtn.disabled = false;
@@ -444,14 +447,40 @@
       let completed = 0;
       progressBar.max = totalRoutes;
       progressBar.value = 0;
+      let currentQueryCount = parseInt(document.getElementById('query-count').textContent) || 0;
 
       // Fetch ve iframe birlikte kullanacağız
       for (const route of routes) {
         try {
-          progressText.textContent = `Taranıyor: ${completed}/${totalRoutes} sayfa (${Math.round((completed / totalRoutes) * 100)}%)`;
+          progressText.textContent = `{{ __('index-analyzer::index-analyzer.scanning') }}: ${completed}/${totalRoutes} {{ __('index-analyzer::index-analyzer.pages') }} (${Math.round((completed / totalRoutes) * 100)}%)`;
 
           // Sayfayı iframe'de yükle
           await loadPageInIframe(route);
+
+          // Sorgu sayısını güncelle
+          await updateQueryCount();
+
+          // Güncel sorgu sayısını kontrol et
+          try {
+            const statsResponse = await fetch(`/${routePrefix}/get-stats`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+              },
+            });
+
+            if (statsResponse.ok) {
+              const statsData = await statsResponse.json();
+              if (statsData.queryCount) {
+                document.getElementById('query-count').textContent = statsData.queryCount;
+                currentQueryCount = statsData.queryCount;
+              }
+            }
+          } catch (statsError) {
+            console.error('Stats error:', statsError);
+          }
 
           completed++;
           progressBar.value = completed;
@@ -460,7 +489,10 @@
         }
       }
 
-      progressText.textContent = 'Tarama tamamlandı!';
+      // Son kez sorgu sayısını güncelle
+      await updateQueryCount();
+
+      progressText.textContent = '{{ __('index-analyzer::index-analyzer.scan_completed') }}';
       progressBar.value = totalRoutes;
 
       // 2 saniye sonra modalı kapat
@@ -469,6 +501,29 @@
         // Sayfayı yenile
         window.location.reload();
       }, 2000);
+    }
+
+    // Sorgu sayısını güncelleyen fonksiyon
+    async function updateQueryCount() {
+      try {
+        const response = await fetch(`/${routePrefix}/get-stats`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.queryCount !== undefined) {
+            document.getElementById('query-count').textContent = data.queryCount;
+          }
+        }
+      } catch (error) {
+        console.error('Sorgu sayısı güncelleme hatası:', error);
+      }
     }
 
     function loadPageInIframe(url) {
