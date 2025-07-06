@@ -45,6 +45,7 @@
 
         .card-title {
             margin-top: 0;
+            margin-bottom: 10px !important;
             border-bottom: 1px solid #eee;
             padding-bottom: 10px;
             color: #4a6cf7;
