@@ -82,6 +82,39 @@ class IndexAnalyzer
     }
 
     /**
+     * Veritabanında zaten var olan önerilen indeksler için SQL ifadeleri oluşturur.
+     *
+     * @return array
+     */
+    public function generateExistingIndexStatements()
+    {
+        $existingSuggestions = $this->generateExistingSuggestions();
+
+        $statements = [];
+
+        foreach ($existingSuggestions as $suggestion) {
+            $statements[] = $this->buildAddIndexStatement(
+                $suggestion['table'],
+                $suggestion['columns'],
+                $suggestion['index_name'] ?? null
+            );
+        }
+
+        return $statements;
+    }
+
+    /**
+     * Veritabanında zaten var olan indeksler için önerileri oluştur.
+     *
+     * @return array
+     */
+    public function generateExistingSuggestions()
+    {
+        $queries = $this->queryLogger->getQueries();
+        return $this->queryAnalyzer->analyzeExisting($queries);
+    }
+
+    /**
      * Yakalanan sorgulara dayalı indeks önerileri oluştur.
      *
      * @return array

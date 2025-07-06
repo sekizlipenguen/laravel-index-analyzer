@@ -111,10 +111,17 @@ class IndexAnalyzerController extends Controller
         $suggestions = IndexAnalyzer::generateSuggestions();
         $statements = IndexAnalyzer::generateIndexStatements();
 
+        // Mevcut indeksleri al
+        $existingSuggestions = IndexAnalyzer::generateExistingSuggestions();
+        $existingStatements = IndexAnalyzer::generateExistingIndexStatements();
+
         return response()->json([
             'success' => true,
             'suggestions' => $suggestions,
             'statements' => $statements,
+            'existingSuggestions' => $existingSuggestions,
+            'existingIndexes' => $existingStatements,
+            'newIndexes' => $statements,
             'debug' => [
                 'query_count' => count($queries),
                 'queries' => array_slice($queries, 0, 10) // İlk 10 sorguyu göster
@@ -129,6 +136,8 @@ class IndexAnalyzerController extends Controller
                 'debug_info' => __('index-analyzer::index-analyzer.debug_info'),
                 'query_count' => __('index-analyzer::index-analyzer.query_count'),
                 'sample_queries' => __('index-analyzer::index-analyzer.sample_queries'),
+                'existing_indexes' => __('index-analyzer::index-analyzer.existing_indexes'),
+                'new_indexes' => __('index-analyzer::index-analyzer.new_indexes'),
             ]
         ]);
     }
@@ -193,9 +202,20 @@ class IndexAnalyzerController extends Controller
         // Tüm sorguları al
         $queries = app('index-analyzer')->getQueryLogger()->getQueries();
 
+        // İndeks sayılarını al
+        $existingSuggestions = [];
+        $newSuggestions = [];
+
+        if (!empty($queries)) {
+            $existingSuggestions = IndexAnalyzer::generateExistingSuggestions();
+            $newSuggestions = IndexAnalyzer::generateSuggestions();
+        }
+
         return response()->json([
             'success' => true,
-            'queryCount' => count($queries)
+            'queryCount' => count($queries),
+            'existingIndexCount' => count($existingSuggestions),
+            'newIndexCount' => count($newSuggestions)
         ]);
     }
 }

@@ -707,6 +707,127 @@ class QueryAnalyzer
     }
 
     /**
+     * Veritabanında zaten var olan indeksleri bulur ve geri döndürür.
+     *
+     * @param array $queries
+     * @return array
+     */
+    public function analyzeExisting(array $queries): array
+    {
+        $existingSuggestions = [];
+        $ignoredTables = config('index-analyzer.suggestions.ignore_tables', []);
+        $minQueryTime = config('index-analyzer.suggestions.min_query_time', 0);
+        $minQueryCount = config('index-analyzer.suggestions.min_query_count', 1);
+
+        // Boş sorgu kontrolü
+        if (empty($queries)) {
+            return [];
+        }
+
+        // Her analiz başlangıcında öneri tablosunu temizle
+        $this->tableSuggestions = [];
+
+        // Group queries by table and conditions
+        $groupedQueries = [];
+
+        foreach ($queries as $query) {
+            // Süre filtreleme (eğer aktifse)
+            if (isset($query['time']) && $minQueryTime > 0 && $query['time'] < $minQueryTime) {
+                continue;
+            }
+
+            // SQL'i ayrıştır ve tablo önerilerini oluştur
+            $parsedQuery = $this->parseQuery($query['sql']);
+            if (empty($parsedQuery)) {
+                continue;
+            }
+
+            // Ana tablo için öneri oluştur (eğer yok sayılan bir tablo değilse)
+            if (!in_array($parsedQuery['table'], $ignoredTables)) {
+                $key = $parsedQuery['table'] . ':' . implode(',', $parsedQuery['filtered_columns']);
+
+                if (!isset($groupedQueries[$key])) {
+                    $groupedQueries[$key] = [
+                        'table' => $parsedQuery['table'],
+                        'columns' => $parsedQuery['filtered_columns'],
+                        'count' => 0,
+                        'total_time' => 0,
+                        'query_type' => $parsedQuery['query_type'] ?? 'SELECT',
+                    ];
+                }
+
+                $groupedQueries[$key]['count']++;
+                $groupedQueries[$key]['total_time'] += $query['time'] ?? 0;
+            }
+        }
+
+        // Analiz sonucunda oluşan tüm tablo önerilerini ekleyelim
+        foreach ($this->tableSuggestions as $tableName => $columns) {
+            // Yok sayılan tablolar ve boş sütun listelerini atla
+            if (in_array($tableName, $ignoredTables) || empty($columns)) {
+                continue;
+            }
+
+            // Hatalı sütunları filtrele
+            $columns = $this->filterInvalidColumns($columns);
+            if (empty($columns)) {
+                continue;
+            }
+
+            $key = $tableName . ':' . implode(',', $columns);
+
+            // Eğer bu tablo+sütun kombinasyonu zaten ana öneri listesinde varsa atlayalım
+            if (isset($groupedQueries[$key])) {
+                continue;
+            }
+
+            // JOIN, GROUP BY veya ORDER BY ile kullanılan tablo/sütunlar için öneri ekle
+            $groupedQueries[$key] = [
+                'table' => $tableName,
+                'columns' => $columns,
+                'count' => 1, // En az bir kez kullanıldığını varsayıyoruz
+                'total_time' => 0, // Süre bilgisini JOIN sorgusundan alamıyoruz
+                'join_related' => true, // Bu, JOIN ile ilgili bir öneri
+            ];
+        }
+
+        // Filter by query count and ONLY get existing indexes
+        foreach ($groupedQueries as $key => $group) {
+            // Sayaç kontrolü
+            if ($group['count'] < $minQueryCount) {
+                continue;
+            }
+
+            // Boş sütun listesi kontrolü
+            if (empty($group['columns'])) {
+                continue;
+            }
+
+            // Mevcut indeks kontrolü - SADECE VAR OLANLARI SEÇER
+            if ($this->isIndexNeeded($group['table'], $group['columns'])) {
+                continue; // Bu index henüz yok, atla
+            }
+
+            // Var olan indeksi ekle
+            $existingSuggestions[] = [
+                'table' => $group['table'],
+                'columns' => $group['columns'],
+                'query_count' => $group['count'],
+                'avg_time' => $group['total_time'] / $group['count'],
+                'index_name' => $this->generateIndexName($group['table'], $group['columns']),
+                'join_related' => $group['join_related'] ?? false,
+                'query_type' => $group['query_type'] ?? 'SELECT',
+                'existing' => true, // Bu indeks zaten var
+            ];
+        }
+
+        // Analiz bittikten sonra öneri tablosunu temizle
+        $this->tableSuggestions = [];
+
+        return $existingSuggestions;
+    }
+
+    /**
      * CASE/WHEN/IF ifadelerini analiz eder
      *
      * @param string $sql
@@ -1320,7 +1441,7 @@ class QueryAnalyzer
             $indexes = [];
             $driver = DB::connection()->getDriverName();
 
-            if ($driver === 'mysql') {
+            if ($driver === 'mysql' || $driver === 'mariadb') {
                 $rawIndexes = DB::select("SHOW INDEXES FROM `{$table}` WHERE `Key_name` != 'PRIMARY'");
 
                 $groupedIndexes = [];

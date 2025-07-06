@@ -186,6 +186,32 @@
         .language-selector {
             align-self: flex-start;
         }
+
+        .index-sections .alert {
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1rem;
+            border: 1px solid transparent;
+            border-radius: 0.25rem;
+        }
+
+        .index-sections .alert-info {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+
+        .index-sections .alert-danger {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        .index-sections h4 {
+            margin-top: 1.5rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #495057;
+        }
     </style>
     <!-- Bootstrap CSS ve JS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -234,6 +260,14 @@
                 <div id="query-count" class="stat-value">{{ $queryCount }}</div>
                 <div class="stat-label">{{ __('index-analyzer::index-analyzer.total_queries') }}</div>
             </div>
+            <div class="stat-card">
+                <div id="existing-index-count" class="stat-value">0</div>
+                <div class="stat-label">{{ __('index-analyzer::index-analyzer.total_existing_indexes') }}</div>
+            </div>
+            <div class="stat-card">
+                <div id="new-index-count" class="stat-value">0</div>
+                <div class="stat-label">{{ __('index-analyzer::index-analyzer.total_new_indexes') }}</div>
+            </div>
         </div>
     </div>
 
@@ -274,7 +308,23 @@
     <div class="dashboard-card">
         <h2 class="card-title">{{ __('index-analyzer::index-analyzer.suggestions') }}</h2>
         <p>{{ __('index-analyzer::index-analyzer.suggestions_hint') }}</p>
-        <div id="results"></div>
+        <div class="index-sections">
+            <div class="existing-indexes-section mb-4" style="display: none;">
+                <h4>
+                    <i class="fa fa-check-circle text-success me-2"></i>{{ __('index-analyzer::index-analyzer.existing_indexes') }}</h4>
+                <p>{{ __('index-analyzer::index-analyzer.existing_indexes_desc') }}</p>
+                <div id="existing-indexes"></div>
+            </div>
+
+            <div class="new-indexes-section" style="display: none;">
+                <h4>
+                    <i class="fa fa-plus-circle text-primary me-2"></i>{{ __('index-analyzer::index-analyzer.new_indexes') }}</h4>
+                <p>{{ __('index-analyzer::index-analyzer.new_indexes_desc') }}</p>
+                <div id="new-indexes"></div>
+            </div>
+
+            <div id="results"></div>
+        </div>
     </div>
 </div>
 
@@ -334,6 +384,15 @@
           if (statsData.success && statsData.queryCount !== undefined) {
             // Sorgu sayısını güncelle
             document.getElementById('query-count').textContent = statsData.queryCount;
+
+            // İndeks sayılarını güncelle (eğer varsa)
+            if (statsData.existingIndexCount !== undefined) {
+              document.getElementById('existing-index-count').textContent = statsData.existingIndexCount;
+            }
+
+            if (statsData.newIndexCount !== undefined) {
+              document.getElementById('new-index-count').textContent = statsData.newIndexCount;
+            }
 
             // Tabloda yeni sorguları görmek için sayfayı yenile - ancak düğmeler tıklandığında
             // Yalnızca otomatik tarama aktifse ve sorgu sayısı değiştiyse yenileme yap
@@ -421,6 +480,10 @@
         stopAutoRefresh();
         resultsElement.textContent = '{{ __('index-analyzer::index-analyzer.generating_suggestions') }}';
 
+        // İndeks sayılarını sıfırla
+        document.getElementById('existing-index-count').textContent = '0';
+        document.getElementById('new-index-count').textContent = '0';
+
         const response = await fetch(`/${routePrefix}/generate-suggestions`, {
           method: 'POST',
           headers: {
@@ -432,39 +495,120 @@
         const data = await response.json();
 
         if (data.success) {
-          if (data.statements.length > 0) {
-            const statementsText = data.statements.join('\n');
-            resultsElement.innerHTML = `<pre>${statementsText}</pre>`;
+          const existingIndexesSection = document.querySelector('.existing-indexes-section');
+          const newIndexesSection = document.querySelector('.new-indexes-section');
+          const existingIndexesContainer = document.getElementById('existing-indexes');
+          const newIndexesContainer = document.getElementById('new-indexes');
 
-            // Add copy button
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'btn btn-primary';
-            copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copy_statements') }}';
-            copyBtn.style.marginTop = '10px';
-            copyBtn.addEventListener('click', () => {
-              navigator.clipboard.writeText(statementsText).then(() => {
-                copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copied') }}';
-                setTimeout(() => {
-                  copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copy_statements') }}';
-                }, 2000);
+          // Sıfırla
+          resultsElement.innerHTML = '';
+          existingIndexesContainer.innerHTML = '';
+          newIndexesContainer.innerHTML = '';
+          existingIndexesSection.style.display = 'none';
+          newIndexesSection.style.display = 'none';
+
+          // İndeks sayılarını güncelle
+          if (data.existingIndexes && Array.isArray(data.existingIndexes)) {
+            document.getElementById('existing-index-count').textContent = data.existingIndexes.length;
+          }
+
+          if (data.newIndexes && Array.isArray(data.newIndexes)) {
+            document.getElementById('new-index-count').textContent = data.newIndexes.length;
+          }
+
+          if (data.statements && data.statements.length > 0) {
+            // Var olan ve yeni indeksleri al
+            const existingIndexes = data.existingIndexes || [];
+            const newIndexes = data.newIndexes || [];
+
+            // Var olan indeksler bölümü
+            if (existingIndexes.length > 0) {
+              existingIndexesSection.style.display = 'block';
+
+              const existingStatementsText = existingIndexes.join('\n');
+              existingIndexesContainer.innerHTML = `<pre>${existingStatementsText}</pre>`;
+
+              // Var olan indeksler için toggle butonu
+              const toggleExistingBtn = document.createElement('button');
+              toggleExistingBtn.className = 'btn btn-sm btn-outline-secondary mt-2';
+              toggleExistingBtn.innerHTML = '<i class="fa fa-eye-slash"></i> {{ __('index-analyzer::index-analyzer.toggle_existing') }}';
+              toggleExistingBtn.addEventListener('click', () => {
+                const pre = existingIndexesContainer.querySelector('pre');
+                if (pre.style.display === 'none') {
+                  pre.style.display = 'block';
+                  toggleExistingBtn.innerHTML = '<i class="fa fa-eye-slash"></i> {{ __('index-analyzer::index-analyzer.toggle_existing') }}';
+                } else {
+                  pre.style.display = 'none';
+                  toggleExistingBtn.innerHTML = '<i class="fa fa-eye"></i> {{ __('index-analyzer::index-analyzer.toggle_existing') }}';
+                }
               });
-            });
-            resultsElement.appendChild(copyBtn);
+              existingIndexesContainer.appendChild(toggleExistingBtn);
+            } else {
+              existingIndexesSection.style.display = 'block';
+              existingIndexesContainer.innerHTML = '<div class="alert alert-info">{{ __('index-analyzer::index-analyzer.no_existing_indexes') }}</div>';
+            }
 
-            // Add debug info
+            // Yeni indeksler bölümü
+            if (newIndexes.length > 0) {
+              newIndexesSection.style.display = 'block';
+
+              const newStatementsText = newIndexes.join('\n');
+              newIndexesContainer.innerHTML = `<pre>${newStatementsText}</pre>`;
+
+              // Yeni indeksler için butonlar
+              const buttonsContainer = document.createElement('div');
+              buttonsContainer.className = 'mt-3';
+
+              // Kopyalama butonu
+              const copyBtn = document.createElement('button');
+              copyBtn.className = 'btn btn-primary me-2';
+              copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copy_statements') }}';
+              copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(newStatementsText).then(() => {
+                  copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copied') }}';
+                  setTimeout(() => {
+                    copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copy_statements') }}';
+                  }, 2000);
+                });
+              });
+              buttonsContainer.appendChild(copyBtn);
+
+              // Toggle butonu
+              const toggleNewBtn = document.createElement('button');
+              toggleNewBtn.className = 'btn btn-sm btn-outline-secondary';
+              toggleNewBtn.innerHTML = '<i class="fa fa-eye-slash"></i> {{ __('index-analyzer::index-analyzer.toggle_new') }}';
+              toggleNewBtn.addEventListener('click', () => {
+                const pre = newIndexesContainer.querySelector('pre');
+                if (pre.style.display === 'none') {
+                  pre.style.display = 'block';
+                  toggleNewBtn.innerHTML = '<i class="fa fa-eye-slash"></i> {{ __('index-analyzer::index-analyzer.toggle_new') }}';
+                } else {
+                  pre.style.display = 'none';
+                  toggleNewBtn.innerHTML = '<i class="fa fa-eye"></i> {{ __('index-analyzer::index-analyzer.toggle_new') }}';
+                }
+              });
+              buttonsContainer.appendChild(toggleNewBtn);
+
+              newIndexesContainer.appendChild(buttonsContainer);
+            } else {
+              newIndexesSection.style.display = 'block';
+              newIndexesContainer.innerHTML = '<div class="alert alert-info">{{ __('index-analyzer::index-analyzer.no_new_indexes') }}</div>';
+            }
+
+            // Hata ayıklama bilgisi
             if (data.debug && data.debug.query_count) {
               const debugInfo = document.createElement('div');
               debugInfo.innerHTML = `<br><small>{{ __('index-analyzer::index-analyzer.debug_info') }}: ${data.debug.query_count}</small>`;
               resultsElement.appendChild(debugInfo);
             }
           } else {
-            resultsElement.textContent = '{{ __('index-analyzer::index-analyzer.no_suggestions') }}' + (data.message ? ' ' + data.message : '');
+            resultsElement.innerHTML = '<div class="alert alert-info">{{ __('index-analyzer::index-analyzer.no_suggestions') }}' + (data.message ? ' ' + data.message : '') + '</div>';
           }
         } else {
-          resultsElement.textContent = '{{ __('index-analyzer::index-analyzer.error') }}: ' + (data.message || '{{ __('index-analyzer::index-analyzer.unknown_error') }}');
+          resultsElement.innerHTML = '<div class="alert alert-danger">{{ __('index-analyzer::index-analyzer.error') }}: ' + (data.message || '{{ __('index-analyzer::index-analyzer.unknown_error') }}') + '</div>';
         }
       } catch (error) {
-        resultsElement.textContent = '{{ __('index-analyzer::index-analyzer.error') }}: ' + error.message;
+        resultsElement.innerHTML = '<div class="alert alert-danger">{{ __('index-analyzer::index-analyzer.error') }}: ' + error.message + '</div>';
         console.error('Generate indexes error:', error);
       } finally {
         generateIndexesBtn.disabled = false;
