@@ -1,6 +1,6 @@
 # Laravel Index Analyzer
 
-📊 Otomatik SQL Index Öneri Sistemi
+📊 Automatic SQL Index Suggestion System | Otomatik SQL Index Öneri Sistemi
 
 [![Latest Stable Version](https://img.shields.io/packagist/v/sekizlipenguen/laravel-index-analyzer.svg)](https://packagist.org/packages/sekizlipenguen/laravel-index-analyzer)
 [![Total Downloads](https://img.shields.io/packagist/dt/sekizlipenguen/laravel-index-analyzer.svg)](https://packagist.org/packages/sekizlipenguen/laravel-index-analyzer)
@@ -12,7 +12,165 @@
 [![Laravel 11.x](https://img.shields.io/badge/Laravel-11.x-red.svg)](https://laravel.com/docs/11.x)
 [![Laravel 12.x](https://img.shields.io/badge/Laravel-12.x-red.svg)](https://laravel.com/docs/12.x)
 
-Laravel tabanlı projelerde kullanılan tüm SQL sorgularını gerçek kullanıcı deneyimi üzerinden (frontend navigasyon, AJAX istekleri dahil) toplayıp, eksik indeksleri tespit eden ve bunlara karşılık SQL önerileri sunan bir paket. Bu sayede veritabanı performansını artırarak, uygulamanızın daha hızlı çalışmasını sağlayabilirsiniz.
+[🇬🇧 English](#english) | [🇹🇷 Türkçe](#türkçe)
+
+<a name="english"></a>
+
+## 🇬🇧 English
+
+A package that collects all SQL queries used in Laravel-based projects through real user experience (including frontend navigation, AJAX requests), detects missing indexes, and provides SQL suggestions for them. This way, you can improve your database performance and make your application run faster.
+
+### Features
+
+- Simulates real user experience with browser integration
+- Easy to use with automatic JS DebugBar
+- Analyzes all SQL queries to detect missing indexes
+- Intelligently analyzes JOIN, WHERE, ORDER BY, and GROUP BY clauses
+- Provides ready-to-use SQL commands for suggested indexes
+- Smart caching system that prevents re-analysis of the same queries
+- Easy configuration (with .env and config file)
+- Minimal system resource usage
+
+### Installation
+
+```bash
+composer require sekizlipenguen/laravel-index-analyzer
+```
+
+To publish the config file:
+
+```bash
+php artisan vendor:publish --provider="SekizliPenguen\IndexAnalyzer\IndexAnalyzerServiceProvider"
+```
+
+### Usage
+
+1. Add the following setting to your `.env` file:
+
+```
+INDEX_ANALYZER_ENABLED=true
+```
+
+2. It is recommended to use it in a development environment. When using it in a production environment, it is advised to set this to false.
+
+3. There are two usage options:
+
+   **A. Using DebugBar:**
+   - Use the debugbar that appears at the bottom of your browser while visiting your pages
+   - Click the "Start Scan" button to start automatic scanning
+   - Navigate through as many pages of your application as possible (simulate normal user experience)
+   - Access login-required pages, admin panels, and special routes by logging in
+   - When all your navigation is complete, click "Extract Indexes" to view analysis results
+   - You can directly copy the suggested SQL commands
+
+   **B. Using Control Panel:**
+   - Access the control panel by going to `/index-analyzer` (e.g., `https://yoursite.com/index-analyzer`)
+   - Click "Start Scan" to start scanning automatic routes
+   - Manually navigate through additional pages (especially important for login-required pages)
+   - View index suggestions and SQL commands
+
+### How It Works
+
+1. **Query Collection**:
+   - All SQL queries in your application are automatically captured
+   - Open GET routes can be automatically scanned
+   - When you manually navigate through login-required pages, queries on these pages are also recorded
+   - All database queries are captured, including those in AJAX requests
+   - Repeated queries are intelligently filtered
+
+2. **Data Analysis**:
+   - Collected queries are analyzed in detail
+   - Columns in WHERE, JOIN, ORDER BY, and GROUP BY clauses are detected
+   - Queries with high performance impact are identified
+   - Classified according to repetition count and execution times
+
+3. **Index Suggestion**:
+   - The most appropriate index suggestions are created for frequently used columns with performance impact
+   - Intelligent analysis for composite indexes
+   - Inter-table relationships are taken into account
+   - Conflicts with existing indexes are checked
+
+4. **SQL Generation**:
+   - Ready SQL commands are created for suggested indexes
+   - Format that you can directly apply to your database is provided
+   - Index naming is done automatically and according to standards
+
+### Configuration
+
+You can customize package behavior with the `config/index-analyzer.php` file:
+
+```php
+return [
+    // Enable/disable IndexAnalyzer (recommended to set to false in production)
+    'enabled' => env('INDEX_ANALYZER_ENABLED', false),
+
+    // Query data storage method (memory or file)
+    'storage' => env('INDEX_ANALYZER_STORAGE', 'file'),
+
+    // Log file path
+    'log_path' => storage_path('logs/index-analyzer.log'),
+
+    // Maximum log file size (10MB default)
+    'max_log_size' => 10 * 1024 * 1024,
+
+    // Route prefix
+    'route_prefix' => 'index-analyzer',
+
+    // Ignored tables (no suggestions will be created for these tables)
+    'ignored_tables' => [
+        'migrations',
+        'jobs',
+        'failed_jobs',
+        'password_resets',
+        'sessions',
+        'personal_access_tokens',
+        // You can add your own tables here
+    ],
+
+    // Settings for suggestions
+    'suggestions' => [
+        'min_query_time' => 0,  // Minimum query time in milliseconds
+        'min_query_count' => 1, // Minimum query repeat count
+    ],
+];
+```
+
+### Performance Impact
+
+This package is designed to be used in a development environment. To minimize performance impact:
+
+- Uses smart caching to avoid re-recording the same queries
+- Doesn't consume system resources when not needed
+- File storage option reduces memory usage
+- Not recommended for use in production, if used, set `INDEX_ANALYZER_ENABLED=false` in your `.env` file
+
+### Examples
+
+#### Example Analysis Output
+
+```json
+{
+   "success": true,
+   "suggestions": [
+      {
+         "table": "users",
+         "columns": [
+            "email",
+            "status"
+         ],
+         "index_name": "users_email_status_idx"
+      },
+      {
+         "table": "orders",
+         "columns": [
+            "user_id",
+            "created_at"
+         ],
+         "index_name": "orders_user_id_created_at_idx"
+      }
+   ],
+   "statements": [
+      "ALTER TABLE `users` ADD INDEX `users_email_status_idx` (`email`,`status`);
 
 ## Özellikler
 
