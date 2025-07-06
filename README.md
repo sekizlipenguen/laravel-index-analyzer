@@ -2,6 +2,11 @@
 
 📊 Otomatik SQL Index Öneri Sistemi
 
+[![Laravel 9.x](https://img.shields.io/badge/Laravel-9.x-red.svg)](https://laravel.com/docs/9.x)
+[![Laravel 10.x](https://img.shields.io/badge/Laravel-10.x-red.svg)](https://laravel.com/docs/10.x)
+[![Laravel 11.x](https://img.shields.io/badge/Laravel-11.x-red.svg)](https://laravel.com/docs/11.x)
+[![Laravel 12.x](https://img.shields.io/badge/Laravel-12.x-red.svg)](https://laravel.com/docs/12.x)
+
 Laravel tabanlı projelerde kullanılan tüm SQL sorgularını gerçek kullanıcı deneyimi üzerinden (frontend navigasyon, AJAX istekleri dahil) toplayıp, eksik indeksleri tespit eden ve bunlara karşılık SQL önerileri sunan bir paket. Bu sayede veritabanı performansını artırarak, uygulamanızın daha hızlı çalışmasını sağlayabilirsiniz.
 
 ## Özellikler
