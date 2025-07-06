@@ -1,6 +1,6 @@
 {
     "name": "sekizlipenguen/laravel-index-analyzer",
-    "description": "Laravel SQL sorguları için otomatik index önerisi sunan gelişmiş bir paket",
+    "description": "Advanced package that automatically analyzes Laravel SQL queries and provides intelligent index suggestions to optimize database performance",
     "type": "library",
     "license": "MIT",
     "authors": [
