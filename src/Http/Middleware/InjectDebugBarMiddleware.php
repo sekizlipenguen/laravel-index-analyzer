@@ -42,6 +42,11 @@ class InjectDebugBarMiddleware
             return false;
         }
 
+        // IndexAnalyzer tarayıcısından gelen isteklere izin ver
+        if ($request->header('X-IndexAnalyzer-Crawler') === 'true') {
+            return false;  // Zaten AJAX isteği olarak işlenecek
+        }
+
         if ($request->ajax() || $request->wantsJson() || $request->isJson()) {
             return false;
         }
@@ -62,6 +67,12 @@ class InjectDebugBarMiddleware
                 strpos($response->headers->get('Content-Type'), 'text/html') === false) {
                 return false;
             }
+        }
+
+        // X-Requested-With header'ı ile yapılan Ajax istekleri için tarayıcı kontrolü
+        if ($request->header('X-Requested-With') === 'XMLHttpRequest' &&
+            $request->header('X-IndexAnalyzer-Crawler') !== 'true') {
+            return false;
         }
 
         // Content olup olmadığını kontrol et
@@ -91,7 +102,7 @@ class InjectDebugBarMiddleware
             return;
         }
 
-        $debugBarJs = view('laravel-index-analyzer::debugbar', [
+        $debugBarJs = view('index-analyzer::debugbar', [
             'settings' => [
                 'position' => config('index-analyzer.debug_bar.position', 'bottom'),
                 'theme' => config('index-analyzer.debug_bar.theme', 'light'),
@@ -99,6 +110,11 @@ class InjectDebugBarMiddleware
                 'routePrefix' => config('index-analyzer.route_prefix', 'index-analyzer'),
             ],
         ])->render();
+
+        // Debug bar'ın zaten enjekte edilip edilmediğini kontrol et
+        if (strpos($content, 'id="ia-debug-bar"') !== false) {
+            return;
+        }
 
         // Inject before the </body> tag
         $bodyPosition = strripos($content, '</body>');

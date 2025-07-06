@@ -95,6 +95,13 @@ window.laravelIndexAnalyzer = window.laravelIndexAnalyzer || {
   recordQuery: function(url, sql, time) {
     if (!this.enabled) return;
 
+    // Translations
+    const translations = window.IndexAnalyzer.translations;
+    const currentLocale = window.IndexAnalyzer.currentLocale;
+
+    // Update UI with translations
+    updateUITranslations();
+
     fetch(`/${this.routePrefix}/record-query`, {
       method: 'POST',
       headers: {
@@ -120,6 +127,49 @@ window.laravelIndexAnalyzer = window.laravelIndexAnalyzer || {
     const tokenInput = document.querySelector('input[name="_token"]');
     if (tokenInput) {
       return tokenInput.value;
+    }
+
+    function updateUITranslations() {
+      // Butonları güncelle
+      if (document.getElementById('btnStartCrawl')) {
+        document.getElementById('btnStartCrawl').textContent = translations.start_scan;
+      }
+
+      if (document.getElementById('btnGenerateSuggestions')) {
+        document.getElementById('btnGenerateSuggestions').textContent = translations.extract_indexes;
+      }
+
+      if (document.getElementById('btnClearQueries')) {
+        document.getElementById('btnClearQueries').textContent = translations.clear_queries;
+      }
+
+      if (document.getElementById('btnCopyStatements')) {
+        document.getElementById('btnCopyStatements').textContent = translations.copy_statements;
+      }
+
+      // Dashboard metinlerini güncelle
+      const elementsToUpdate = {
+        'totalQueriesLabel': translations.total_queries,
+        'totalSuggestionsLabel': translations.total_suggestions,
+        'scannedRoutesLabel': translations.scanned_routes,
+        'slowQueriesLabel': translations.slow_queries,
+        'suggestionsTitle': translations.suggestions,
+        'tableColumnHeader': translations.table,
+        'columnsColumnHeader': translations.columns,
+        'indexNameColumnHeader': translations.index_name,
+        'statementsHeader': translations.statements,
+        'debugInfoHeader': translations.debug_info,
+        'queryCountLabel': translations.query_count,
+        'sampleQueriesLabel': translations.sample_queries,
+      };
+
+      // Her elementi güncelle
+      for (const [id, text] of Object.entries(elementsToUpdate)) {
+        const element = document.getElementById(id);
+        if (element) {
+          element.textContent = text;
+        }
+      }
     }
 
     return '';

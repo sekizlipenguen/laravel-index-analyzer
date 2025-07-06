@@ -16,7 +16,7 @@ class DashboardController extends Controller
         $queries = app('index-analyzer')->getQueryLogger()->getQueries();
         $queryCount = count($queries);
 
-        return view('laravel-index-analyzer::dashboard', [
+        return view('index-analyzer::dashboard', [
             'queryCount' => $queryCount,
             'recentQueries' => array_slice($queries, 0, 10),
             'routePrefix' => config('index-analyzer.route_prefix', 'index-analyzer'),

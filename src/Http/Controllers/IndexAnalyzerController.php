@@ -5,6 +5,7 @@ namespace SekizliPenguen\IndexAnalyzer\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\App;
 use SekizliPenguen\IndexAnalyzer\Facades\IndexAnalyzer;
 
 class IndexAnalyzerController extends Controller
@@ -17,13 +18,18 @@ class IndexAnalyzerController extends Controller
      */
     public function startCrawl(Request $request)
     {
+        // Dil seçeneğini al ve uygula
+        $locale = $request->get('locale', config('language.default_locale', 'en'));
+        App::setLocale($locale);
+
         // Yeni bir tarama oturumu başlat
         $routes = $this->getApplicationRoutes();
 
         return response()->json([
             'success' => true,
-            'message' => 'Crawling started',
+            'message' => __('index-analyzer.crawling_started'),
             'routes' => $routes,
+            'locale' => $locale
         ]);
     }
 
@@ -80,6 +86,10 @@ class IndexAnalyzerController extends Controller
      */
     public function generateSuggestions(Request $request)
     {
+        // Dil seçeneğini al ve uygula
+        $locale = $request->get('locale', config('language.default_locale', 'en'));
+        App::setLocale($locale);
+
         // Tüm sorguları al
         $queries = app('index-analyzer')->getQueryLogger()->getQueries();
 
@@ -89,11 +99,12 @@ class IndexAnalyzerController extends Controller
                 'success' => true,
                 'suggestions' => [],
                 'statements' => [],
-                'message' => 'Hiç sorgu kaydedilmemiş. Lütfen önce tarama yapın.',
+                'message' => __('index-analyzer.no_queries_recorded'),
                 'debug' => [
                     'query_count' => 0,
                     'queries' => []
-                ]
+                ],
+                'locale' => $locale
             ]);
         }
 
@@ -107,6 +118,17 @@ class IndexAnalyzerController extends Controller
             'debug' => [
                 'query_count' => count($queries),
                 'queries' => array_slice($queries, 0, 10) // İlk 10 sorguyu göster
+            ],
+            'locale' => $locale,
+            'translations' => [
+                'table' => __('index-analyzer.table'),
+                'columns' => __('index-analyzer.columns'),
+                'index_name' => __('index-analyzer.index_name'),
+                'statements' => __('index-analyzer.statements'),
+                'apply_to_database' => __('index-analyzer.apply_to_database'),
+                'debug_info' => __('index-analyzer.debug_info'),
+                'query_count' => __('index-analyzer.query_count'),
+                'sample_queries' => __('index-analyzer.sample_queries'),
             ]
         ]);
     }
@@ -119,6 +141,10 @@ class IndexAnalyzerController extends Controller
      */
     public function recordQuery(Request $request)
     {
+        // Dil seçeneğini al ve uygula
+        $locale = $request->get('locale', config('language.default_locale', 'en'));
+        App::setLocale($locale);
+
         $request->validate([
             'url' => 'required|string',
             'sql' => 'required|string',
@@ -130,7 +156,8 @@ class IndexAnalyzerController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Query recorded',
+            'message' => __('index-analyzer.query_recorded'),
+            'locale' => $locale
         ]);
     }
 
@@ -142,11 +169,16 @@ class IndexAnalyzerController extends Controller
      */
     public function clearQueries(Request $request)
     {
+        // Dil seçeneğini al ve uygula
+        $locale = $request->get('locale', config('language.default_locale', 'en'));
+        App::setLocale($locale);
+
         app('index-analyzer')->getQueryLogger()->clearQueries();
 
         return response()->json([
             'success' => true,
-            'message' => 'All queries cleared',
+            'message' => __('index-analyzer.queries_cleared'),
+            'locale' => $locale
         ]);
     }
 }

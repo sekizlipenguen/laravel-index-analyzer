@@ -4,6 +4,7 @@ namespace SekizliPenguen\IndexAnalyzer;
 
 use Illuminate\Support\ServiceProvider;
 use SekizliPenguen\IndexAnalyzer\Http\Middleware\CaptureQueriesMiddleware;
+use SekizliPenguen\IndexAnalyzer\Http\Middleware\LocaleMiddleware;
 
 class IndexAnalyzerServiceProvider extends ServiceProvider
 {
@@ -44,10 +45,24 @@ class IndexAnalyzerServiceProvider extends ServiceProvider
             return;
         }
 
-        $this->loadViewsFrom(__DIR__ . '/../resources/views', 'laravel-index-analyzer');
+        // View dosyalarını yayınla
+        $this->publishes([
+            __DIR__ . '/../resources/views' => resource_path('views/vendor/index-analyzer'),
+        ], 'views');
+
+        // Doğru namespace ile view dosyalarını yükle
+        $this->loadViewsFrom(__DIR__ . '/../resources/views', 'index-analyzer');
+
+        // Dil dosyalarını yükle
+        $this->loadTranslationsFrom(__DIR__ . '/../resources/lang', 'index-analyzer');
+        $this->publishes([
+            __DIR__ . '/../resources/lang' => resource_path('lang/vendor/index-analyzer'),
+        ], 'lang');
+
         $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
 
         $this->app['router']->aliasMiddleware('capture-queries', CaptureQueriesMiddleware::class);
+        $this->app['router']->aliasMiddleware('index-analyzer-locale', LocaleMiddleware::class);
 
         $this->injectAssets();
     }

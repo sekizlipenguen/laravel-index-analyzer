@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Laravel Index Analyzer - Kontrol Paneli</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <style>
@@ -174,19 +176,55 @@
             white-space: pre-wrap;
             font-family: monospace;
         }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .language-selector {
+            align-self: flex-start;
+        }
     </style>
+    <!-- Bootstrap CSS ve JS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Font Awesome ikonları -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
 <div class="container">
     <header>
-        <h1>Laravel Index Analyzer</h1>
-        <p>SQL sorguları analiz ederek otomatik indeks önerileri oluşturan araç</p>
+        <div class="header-content">
+            <div>
+                <h1>{{ __('index-analyzer::index-analyzer.title') }}</h1>
+                <p>{{ __('index-analyzer::index-analyzer.description') }}</p>
+            </div>
+            <div class="language-selector">
+                <div class="language-selector dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="languageDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fa fa-globe"></i> {{ __('index-analyzer::index-analyzer.language') }}: {{ config('language.locales.' . App::getLocale()) }}
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="languageDropdown">
+                        @foreach(config('language.locales', ['en' => 'English', 'tr' => 'Türkçe']) as $code => $name)
+                            <li>
+                                <a class="dropdown-item {{ App::getLocale() == $code ? 'active' : '' }}" href="javascript:void(0);" data-language-code="{{ $code }}">
+                                    {{ $name }}
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        </div>
     </header>
 
     <div class="actions">
-        <button id="startCrawl" class="btn btn-primary">Taramayı Başlat</button>
-        <button id="generateIndexes" class="btn btn-success">İndeksleri Çıkar</button>
-        <button id="clearQueries" class="btn btn-danger">Tüm Sorguları Temizle</button>
+        <button id="startCrawl" class="btn btn-primary">{{ __('index-analyzer::index-analyzer.start_scan') }}</button>
+        <button id="generateIndexes" class="btn btn-success">{{ __('index-analyzer::index-analyzer.extract_indexes') }}</button>
+        <button id="clearQueries" class="btn btn-danger">{{ __('index-analyzer::index-analyzer.clear_queries') }}</button>
     </div>
 
     <div class="dashboard-card">
@@ -481,6 +519,52 @@
         iframe.src = url;
       });
     }
+  });
+</script>
+<!-- Bootstrap ve Dil değiştirici script -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Bootstrap dropdown'lar zaten otomatik başlatılır, manuel başlatmaya gerek yok
+
+    // Dil dropdown menüsündeki tüm dil seçeneklerini al
+    const languageItems = document.querySelectorAll('[data-language-code]');
+    console.log('Dil seçenekleri:', languageItems.length);
+
+    // Her dil seçeneğine tıklama olayı ekle
+    languageItems.forEach(item => {
+      item.addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('Dil seçeneği tıklandı');
+
+        // Seçilen dil kodunu al
+        const languageCode = this.getAttribute('data-language-code');
+        console.log('Seçilen dil:', languageCode);
+
+        // CSRF token'ı al
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        // Dil değiştirme isteği gönder
+        fetch('/index-analyzer/change-language', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': token,
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({locale: languageCode}),
+        }).then(response => response.json()).then(data => {
+          if (data.success) {
+            console.log('Dil değiştirildi:', data.message);
+            // Başarılı olursa sayfayı yenile
+            window.location.reload();
+          } else {
+            console.error('Dil değiştirme hatası:', data.message);
+          }
+        }).catch(error => {
+          console.error('Dil değiştirme hatası:', error);
+        });
+      });
+    });
   });
 </script>
 </body>
