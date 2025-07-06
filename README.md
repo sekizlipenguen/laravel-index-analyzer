@@ -43,6 +43,20 @@ To publish the config file:
 php artisan vendor:publish --provider="SekizliPenguen\IndexAnalyzer\IndexAnalyzerServiceProvider"
 ```
 
+## Ekran Görüntüleri
+
+### Dashboard
+
+![Dashboard](screenshots/img.png)
+
+### Tarama Süreci
+
+![Tarama Süreci](screenshots/img_2.png)
+
+### İndeks Önerileri
+
+![İndeks Önerileri](screenshots/img_1.png)
+
 ### Usage
 
 1. Add the following setting to your `.env` file:
