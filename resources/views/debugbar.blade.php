@@ -14,6 +14,7 @@
                 <div class="ia-actions">
                     <button id="ia-start-crawl" class="ia-btn ia-btn-primary">{{ __('index-analyzer::index-analyzer.start_scan') }}</button>
                     <button id="ia-generate-indexes" class="ia-btn ia-btn-success">{{ __('index-analyzer::index-analyzer.extract_indexes') }}</button>
+                    <button id="ia-refresh-queries" class="ia-btn ia-btn-info">{{ __('index-analyzer::index-analyzer.refresh_queries') }}</button>
                     <button id="ia-clear-queries" class="ia-btn ia-btn-danger">{{ __('index-analyzer::index-analyzer.clear_all') }}</button>
                     <button id="ia-toggle" class="ia-btn ia-btn-secondary">{{ __('index-analyzer::index-analyzer.hide') }}</button>
                 </div>
@@ -133,6 +134,15 @@
                 background: #c82333;
             }
 
+            .ia-btn-info {
+                background: #17a2b8;
+                color: white;
+            }
+
+            .ia-btn-info:hover {
+                background: #138496;
+            }
+
             .ia-btn-secondary {
                 background: #6c757d;
                 color: white;
@@ -236,17 +246,20 @@
           const data = await response.json();
 
           if (data.success) {
-            statusElement.textContent = 'Tarama başlatıldı';
+            statusElement.textContent = '{{ __('index-analyzer::index-analyzer.scan_started') }}';
 
             // Start crawling routes
             await crawlRoutes(data.routes, progressBar, statusElement);
 
-            statusElement.textContent = 'Tarama tamamlandı';
+            // Son kez istatistikleri güncelle
+            await refreshStats();
+
+            statusElement.textContent = '{{ __('index-analyzer::index-analyzer.scan_completed') }}';
           } else {
-            statusElement.textContent = 'Hata: ' + (data.message || 'Bilinmeyen hata');
+            statusElement.textContent = '{{ __('index-analyzer::index-analyzer.error') }}: ' + (data.message || '{{ __('index-analyzer::index-analyzer.unknown_error') }}');
           }
         } catch (error) {
-          statusElement.textContent = 'Hata: ' + error.message;
+          statusElement.textContent = '{{ __('index-analyzer::index-analyzer.error') }}: ' + error.message;
           console.error('Crawl error:', error);
         } finally {
           startCrawlBtn.disabled = false;
@@ -258,7 +271,7 @@
       generateIndexesBtn.addEventListener('click', async () => {
         try {
           generateIndexesBtn.disabled = true;
-          statusElement.textContent = 'İndeks önerileri oluşturuluyor...';
+          statusElement.textContent = '{{ __('index-analyzer::index-analyzer.generating_index_suggestions') }}';
 
           const response = await fetch(`/${debugBarSettings.routePrefix}/generate-suggestions`, {
             method: 'POST',
@@ -271,7 +284,7 @@
           const data = await response.json();
 
           if (data.success) {
-            statusElement.textContent = data.message || 'İndeks önerileri oluşturuldu';
+            statusElement.textContent = data.message || '{{ __('index-analyzer::index-analyzer.generating_suggestions') }}';
 
             if (data.statements.length > 0) {
               const statementsText = data.statements.join('\n');
@@ -281,12 +294,12 @@
               // Add copy button
               const copyBtn = document.createElement('button');
               copyBtn.className = 'ia-copy-btn';
-              copyBtn.textContent = 'Kopyala';
+              copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copy_statements') }}';
               copyBtn.addEventListener('click', () => {
                 navigator.clipboard.writeText(statementsText).then(() => {
-                  copyBtn.textContent = 'Kopyalandı!';
+                  copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copied') }}';
                   setTimeout(() => {
-                    copyBtn.textContent = 'Kopyala';
+                    copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copy_statements') }}';
                   }, 2000);
                 });
               });
@@ -297,26 +310,26 @@
               if (data.debug && data.debug.query_count) {
                 const debugInfo = document.createElement('div');
                 debugInfo.className = 'ia-debug-info';
-                debugInfo.innerHTML = `<br><small>Analiz edilen sorgu sayısı: ${data.debug.query_count}</small>`;
+                debugInfo.innerHTML = `<br><small>{{ __('index-analyzer::index-analyzer.query_count') }}: ${data.debug.query_count}</small>`;
                 resultsElement.appendChild(debugInfo);
               }
             } else {
-              resultsElement.textContent = 'Önerilen indeks bulunamadı.' + (data.message ? ' ' + data.message : '');
+              resultsElement.textContent = '{{ __('index-analyzer::index-analyzer.no_suggestions') }}' + (data.message ? ' ' + data.message : '');
               resultsElement.style.display = 'block';
 
               // Debug bilgisi ekle
               if (data.debug) {
                 const debugInfo = document.createElement('div');
                 debugInfo.className = 'ia-debug-info';
-                debugInfo.innerHTML = `<br><small>Analiz edilen sorgu sayısı: ${data.debug.query_count || 0}</small>`;
+                debugInfo.innerHTML = `<br><small>{{ __('index-analyzer::index-analyzer.query_count') }}: ${data.debug.query_count || 0}</small>`;
                 resultsElement.appendChild(debugInfo);
               }
             }
           } else {
-            statusElement.textContent = 'Hata: ' + (data.message || 'Bilinmeyen hata');
+            statusElement.textContent = '{{ __('index-analyzer::index-analyzer.error') }}: ' + (data.message || '{{ __('index-analyzer::index-analyzer.unknown_error') }}');
           }
         } catch (error) {
-          statusElement.textContent = 'Hata: ' + error.message;
+          statusElement.textContent = '{{ __('index-analyzer::index-analyzer.error') }}: ' + error.message;
           console.error('Generate indexes error:', error);
         } finally {
           generateIndexesBtn.disabled = false;
@@ -327,7 +340,7 @@
       clearQueriesBtn.addEventListener('click', async () => {
         try {
           clearQueriesBtn.disabled = true;
-          statusElement.textContent = 'Sorgular temizleniyor...';
+          statusElement.textContent = '{{ __('index-analyzer::index-analyzer.clear_queries') }}...';
           resultsElement.style.display = 'none';
 
           const response = await fetch(`/${debugBarSettings.routePrefix}/clear-queries`, {
@@ -341,13 +354,20 @@
           const data = await response.json();
 
           if (data.success) {
-            statusElement.textContent = 'Sorgular temizlendi';
+            statusElement.textContent = '{{ __('index-analyzer::index-analyzer.queries_cleared') }}';
             progressBar.style.width = '0%';
+
+            // Temizlik sonrası istatistikleri sıfırla
+            const resultsElement = document.getElementById('ia-results');
+            const existingDebugInfo = resultsElement.querySelector('.ia-debug-info');
+            if (existingDebugInfo) {
+              existingDebugInfo.innerHTML = '<br><small>{{ __('index-analyzer::index-analyzer.query_count') }}: 0</small>';
+            }
           } else {
-            statusElement.textContent = 'Hata: ' + (data.message || 'Bilinmeyen hata');
+            statusElement.textContent = '{{ __('index-analyzer::index-analyzer.error') }}: ' + (data.message || '{{ __('index-analyzer::index-analyzer.unknown_error') }}');
           }
         } catch (error) {
-          statusElement.textContent = 'Hata: ' + error.message;
+          statusElement.textContent = '{{ __('index-analyzer::index-analyzer.error') }}: ' + error.message;
           console.error('Clear queries error:', error);
         } finally {
           clearQueriesBtn.disabled = false;
@@ -369,7 +389,7 @@
         function updateProgress() {
           const percentage = (completed / totalRoutes) * 100;
           progressBar.style.width = percentage + '%';
-          statusElement.textContent = `Taranıyor: ${completed}/${totalRoutes} sayfa (${Math.round(percentage)}%)`;
+          statusElement.textContent = `{{ __('index-analyzer::index-analyzer.scanning') }}: ${completed}/${totalRoutes} {{ __('index-analyzer::index-analyzer.page') }} (${Math.round(percentage)}%)`;
         }
 
         async function processRoute() {
@@ -418,7 +438,7 @@
             // Fetch çağrısı
             await fetch(route, fetchOptions).catch(e => console.log('Fetch request for', route, 'failed:', e));
           } catch (fetchError) {
-            console.log('Fetch error:', fetchError);
+            console.log('{{ __('index-analyzer::index-analyzer.fetch_error') }}:', fetchError);
             // Fetch hatası olsa bile devam et
           }
 
@@ -514,7 +534,7 @@
       // Auto-hide if configured
       if (!debugBarSettings.autoShow) {
         debugBar.classList.add('ia-hidden');
-        document.getElementById('ia-toggle').textContent = 'Göster';
+        document.getElementById('ia-toggle').textContent = '{{ __('index-analyzer::index-analyzer.show') }}';
       }
     }
 

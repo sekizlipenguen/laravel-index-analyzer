@@ -17,6 +17,7 @@ return [
     'extract_indexes' => 'İndeksleri Çıkar',
     'clear_queries' => 'Tüm Sorguları Temizle',
     'clear_all' => 'Temizle',
+    'refresh_queries' => 'Sorguları Yenile',
     'copy_statements' => 'SQL Komutlarını Kopyala',
     'show' => 'Göster',
     'hide' => 'Gizle',
@@ -32,10 +33,14 @@ return [
     'scan_completed' => 'Tarama tamamlandı!',
     'scan_starting' => 'Tarama başlatılıyor...',
     'ready' => 'Hazır',
+    'refreshing_queries' => 'Sorgular yenileniyor...',
+    'queries_refreshed' => 'Sorgular yenilendi',
     'generating_suggestions' => 'İndeks önerileri oluşturuluyor...',
     'no_suggestions' => 'Önerilen indeks bulunamadı.',
     'error' => 'Hata',
     'unknown_error' => 'Bilinmeyen hata',
+    'stats_refresh_error' => 'İstatistik yenileme hatası',
+    'generating_index_suggestions' => 'İndeks önerileri oluşturuluyor...',
 
     // Kontrol Paneli
     'total_queries' => 'Toplam Sorgu',
@@ -60,4 +65,9 @@ return [
     'debug_info' => 'Hata Ayıklama Bilgisi',
     'query_count' => 'Sorgu Sayısı',
     'sample_queries' => 'Örnek Sorgular',
+    'page' => 'sayfa',
+    'scan_started' => 'Tarama başlatıldı',
+    'query_count_update_error' => 'Sorgu sayısı güncelleme hatası',
+    'fetch_error' => 'Fetch hatası',
+    'stats_refresh_error' => 'İstatistik yenileme hatası'
 ];

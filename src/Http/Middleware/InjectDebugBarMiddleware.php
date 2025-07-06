@@ -36,9 +36,15 @@ class InjectDebugBarMiddleware
      * @param mixed $response
      * @return bool
      */
-    protected function shouldInject($request, $response)
+    protected function shouldInject(Request $request, mixed $response)
     {
         if (!config('index-analyzer.enabled', false)) {
+            return false;
+        }
+
+        // Sadece Dashboard ana sayfasında debug bar'ı gösterme
+        $routePrefix = config('index-analyzer.route_prefix', 'index-analyzer');
+        if ($request->path() === $routePrefix || $request->path() === $routePrefix . '/') {
             return false;
         }
 
@@ -64,7 +70,8 @@ class InjectDebugBarMiddleware
         // Sadece HTML içerik tipine sahip yanıtlara enjekte et
         if ($response instanceof Response) {
             if (!$response->headers->has('Content-Type') ||
-                strpos($response->headers->get('Content-Type'), 'text/html') === false) {
+                !str_contains($response->headers->get('Content-Type'), 'text/html')) {
+
                 return false;
             }
         }
@@ -79,7 +86,6 @@ class InjectDebugBarMiddleware
         if (!method_exists($response, 'getContent')) {
             return false;
         }
-
         return true;
     }
 

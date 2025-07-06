@@ -239,7 +239,7 @@
 
     <div class="dashboard-card">
         <h2 class="card-title">{{ __('index-analyzer::index-analyzer.sample_queries') }}</h2>
-        <table>
+        <table id="sample-queries-table">
             <thead>
             <tr>
                 <th>SQL</th>
@@ -263,6 +263,12 @@
             @endif
             </tbody>
         </table>
+        <div class="mt-3">
+            <button id="refreshQueriesBtn" class="btn btn-sm btn-secondary">
+                <i class="fa fa-refresh"></i>
+                Sorguları Yenile
+            </button>
+        </div>
     </div>
 
     <div class="dashboard-card">
@@ -288,6 +294,14 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
+    // Otomatik yenileme için değişkenler
+    let autoRefreshStats = false;
+    let refreshInterval = null;
+    const REFRESH_RATE = 5000; // 5 saniyede bir yenileme
+
+    // Sayfa yüklendiğinde mevcut sorgu sayısını kontrol et ve kaydet
+    let initialQueryCount = parseInt(document.getElementById('query-count').textContent) || 0;
+
     const startCrawlBtn = document.getElementById('startCrawl');
     const generateIndexesBtn = document.getElementById('generateIndexes');
     const clearQueriesBtn = document.getElementById('clearQueries');
@@ -299,13 +313,71 @@
     const progressBar = document.getElementById('progressBar');
     const routePrefix = '{{ $routePrefix }}';
 
+    // İlk yenilemeyi başlat
+    refreshStats();
+
+    // İstatistikleri güncelleyecek fonksiyon
+    async function refreshStats() {
+      try {
+        // Sorgu sayısını al
+        const statsResponse = await fetch(`/${routePrefix}/get-stats`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          if (statsData.success && statsData.queryCount !== undefined) {
+            // Sorgu sayısını güncelle
+            document.getElementById('query-count').textContent = statsData.queryCount;
+
+            // Tabloda yeni sorguları görmek için sayfayı yenile - ancak düğmeler tıklandığında
+            // Yalnızca otomatik tarama aktifse ve sorgu sayısı değiştiyse yenileme yap
+            if (autoRefreshStats && parseInt(document.getElementById('query-count').textContent) !== statsData.queryCount) {
+              // Sorgu sayısı değişti, 1 saniye sonra sayfayı yenile
+              setTimeout(() => {
+                location.reload();
+              }, 1000);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('İstatistik yenileme hatası:', error);
+      }
+    }
+
     function getCSRFToken() {
       return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    // Otomatik yenilemeyi başlat
+    function startAutoRefresh() {
+      autoRefreshStats = true;
+      if (!refreshInterval) {
+        refreshInterval = setInterval(refreshStats, REFRESH_RATE);
+        console.log('Otomatik yenileme başlatıldı');
+      }
+    }
+
+    // Otomatik yenilemeyi durdur
+    function stopAutoRefresh() {
+      autoRefreshStats = false;
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+        console.log('Otomatik yenileme durduruldu');
+      }
     }
 
     startCrawlBtn.addEventListener('click', async function() {
       try {
         startCrawlBtn.disabled = true;
+        // Otomatik yenilemeyi başlat
+        startAutoRefresh();
 
         const response = await fetch(`/${routePrefix}/start-crawl`, {
           method: 'POST',
@@ -345,6 +417,8 @@
     generateIndexesBtn.addEventListener('click', async function() {
       try {
         generateIndexesBtn.disabled = true;
+        // Otomatik yenilemeyi durdur
+        stopAutoRefresh();
         resultsElement.textContent = '{{ __('index-analyzer::index-analyzer.generating_suggestions') }}';
 
         const response = await fetch(`/${routePrefix}/generate-suggestions`, {
@@ -404,6 +478,8 @@
 
       try {
         clearQueriesBtn.disabled = true;
+        // Otomatik yenilemeyi durdur
+        stopAutoRefresh();
 
         const response = await fetch(`/${routePrefix}/clear-queries`, {
           method: 'POST',
@@ -439,6 +515,27 @@
     window.addEventListener('click', function(event) {
       if (event.target == routesModal) {
         routesModal.style.display = 'none';
+      }
+      // Manuel olarak örnek sorguları yenileme butonu
+      const refreshQueriesBtn = document.getElementById('refreshQueriesBtn');
+      if (refreshQueriesBtn) {
+        refreshQueriesBtn.addEventListener('click', async function() {
+          // Sayfa yenilemeden önce düğmeyi devre dışı bırak
+          refreshQueriesBtn.disabled = true;
+          refreshQueriesBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Yenileniyor...';
+
+          try {
+            // İstatistikleri güncelle
+            await refreshStats();
+
+            // Sadece tabloyu yenilemek için sayfayı yenile
+            location.reload();
+          } catch (error) {
+            console.error('Sorgu yenileme hatası:', error);
+            refreshQueriesBtn.disabled = false;
+            refreshQueriesBtn.innerHTML = '<i class="fa fa-refresh"></i> Sorguları Yenile';
+          }
+        });
       }
     });
 
@@ -494,6 +591,9 @@
 
       progressText.textContent = '{{ __('index-analyzer::index-analyzer.scan_completed') }}';
       progressBar.value = totalRoutes;
+
+      // Otomatik yenilemeyi durdur
+      stopAutoRefresh();
 
       // 2 saniye sonra modalı kapat
       setTimeout(() => {

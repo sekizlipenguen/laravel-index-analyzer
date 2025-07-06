@@ -17,6 +17,7 @@ return [
     'extract_indexes' => 'Extract Indexes',
     'clear_queries' => 'Clear All Queries',
     'clear_all' => 'Clear All',
+    'refresh_queries' => 'Refresh Queries',
     'copy_statements' => 'Copy SQL Statements',
     'show' => 'Show',
     'hide' => 'Hide',
@@ -32,10 +33,14 @@ return [
     'scan_completed' => 'Scan completed!',
     'scan_starting' => 'Scan starting...',
     'ready' => 'Ready',
+    'refreshing_queries' => 'Refreshing queries...',
+    'queries_refreshed' => 'Queries refreshed',
     'generating_suggestions' => 'Generating index suggestions...',
     'no_suggestions' => 'No index suggestions found.',
     'error' => 'Error',
     'unknown_error' => 'Unknown error',
+    'stats_refresh_error' => 'Statistics refresh error',
+    'generating_index_suggestions' => 'Generating index suggestions...',
 
     // Dashboard
     'total_queries' => 'Total Queries',
