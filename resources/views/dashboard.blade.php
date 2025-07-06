@@ -543,8 +543,36 @@
         // Rota önekini al
         const prefix = '{{ config("index-analyzer.route_prefix", "index-analyzer") }}';
 
-        // GET isteği ile dil değiştirme - en basit ve güvenilir yöntem
-        window.location.href = `/${prefix}/set-locale/${languageCode}`;
+        // URL oluştur
+        const localeUrl = `/${prefix}/set-locale/${languageCode}`;
+        console.log('Dil değiştirme URL:', localeUrl);
+
+        // Mevcut URL'i sakla
+        const currentUrl = window.location.href;
+
+        // Form oluştur ve POST isteği gönder
+        const form = document.createElement('form');
+        form.method = 'GET';
+        form.action = localeUrl;
+
+        // Geri dönüş URL'i ekle
+        const redirectInput = document.createElement('input');
+        redirectInput.type = 'hidden';
+        redirectInput.name = 'redirect';
+        redirectInput.value = currentUrl;
+        form.appendChild(redirectInput);
+
+        // CSRF token ekle
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = '_token';
+        csrfInput.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        form.appendChild(csrfInput);
+
+        // Form'u gizle ve gönder
+        form.style.display = 'none';
+        document.body.appendChild(form);
+        form.submit();
       });
     });
   });

@@ -65,6 +65,9 @@ class IndexAnalyzerServiceProvider extends ServiceProvider
         $this->app['router']->aliasMiddleware('capture-queries', CaptureQueriesMiddleware::class);
         $this->app['router']->aliasMiddleware('index-analyzer-locale', LocaleMiddleware::class);
 
+        // LocaleMiddleware'i global olarak ekle
+        $this->app['router']->pushMiddlewareToGroup('web', LocaleMiddleware::class);
+
         $this->injectAssets();
     }
 

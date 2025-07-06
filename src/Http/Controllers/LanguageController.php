@@ -82,18 +82,23 @@ class LanguageController extends Controller
      *
      * @param Request $request
      * @param string $locale
-     * @return JsonResponse
+     * @return \Illuminate\Http\Response|JsonResponse
      */
-    public function setLocale(Request $request, string $locale): JsonResponse
+    public function setLocale(Request $request, string $locale)
     {
+        // Log ekle
+        \Log::info('setLocale çağrıldı', [
+            'locale' => $locale,
+            'method' => $request->method(),
+            'isAjax' => $request->ajax() || $request->wantsJson()
+        ]);
+
         // Desteklenen diller içinde mi kontrol et
         $locales = Config::get('language.locales', ['en' => 'English', 'tr' => 'Türkçe']);
 
         if (!array_key_exists($locale, $locales)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Desteklenmeyen dil kodu: ' . $locale
-            ]);
+            \Log::warning('Desteklenmeyen dil: ' . $locale);
+            $locale = config('language.default_locale', 'en');
         }
 
         // Dili oturuma kaydet
@@ -101,10 +106,18 @@ class LanguageController extends Controller
 
         // Geçerli istekte dili değiştir
         App::setLocale($locale);
+        \Log::info('Dil değiştirildi: ' . $locale);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Dil başarıyla değiştirildi: ' . $locales[$locale]
-        ]);
+        // AJAX veya JSON isteği ise JSON yanıtı döndür
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'locale' => $locale,
+                'message' => 'Dil başarıyla değiştirildi: ' . $locales[$locale]
+            ]);
+        }
+
+        // GET isteği ise geri yönlendir
+        return redirect()->back()->with('success', 'Dil başarıyla değiştirildi: ' . $locales[$locale]);
     }
 }

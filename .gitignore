@@ -8,3 +8,9 @@
 composer.lock
 phpunit.xml
 phpstan.neon
+
+# Pakete dahil olmayan dosyalar
+/public/index.php
+/bootstrap
+/app
+/tests/test-app
