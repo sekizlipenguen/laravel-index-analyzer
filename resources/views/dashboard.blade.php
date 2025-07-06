@@ -481,8 +481,7 @@
         resultsElement.textContent = '{{ __('index-analyzer::index-analyzer.generating_suggestions') }}';
 
         // İndeks sayılarını sıfırla
-        document.getElementById('existing-index-count').textContent = '0';
-        document.getElementById('new-index-count').textContent = '0';
+
 
         const response = await fetch(`/${routePrefix}/generate-suggestions`, {
           method: 'POST',
@@ -701,7 +700,7 @@
           // Sorgu sayısını güncelle
           await updateQueryCount();
 
-          // Güncel sorgu sayısını kontrol et
+          // Güncel sorgu sayısını ve indeks sayılarını kontrol et
           try {
             const statsResponse = await fetch(`/${routePrefix}/get-stats`, {
               method: 'GET',
@@ -714,10 +713,25 @@
 
             if (statsResponse.ok) {
               const statsData = await statsResponse.json();
-              if (statsData.queryCount) {
+              // Sorgu sayısını güncelle (sadece değişmişse)
+              if (statsData.queryCount && parseInt(document.getElementById('query-count').textContent) !== statsData.queryCount) {
                 document.getElementById('query-count').textContent = statsData.queryCount;
                 currentQueryCount = statsData.queryCount;
               }
+
+              // Mevcut indeks sayısını güncelle (sadece değişmişse)
+              if (statsData.existingIndexCount !== undefined &&
+                  parseInt(document.getElementById('existing-index-count').textContent) !== statsData.existingIndexCount) {
+                document.getElementById('existing-index-count').textContent = statsData.existingIndexCount;
+              }
+
+              // Yeni indeks sayısını güncelle (sadece değişmişse)
+              if (statsData.newIndexCount !== undefined &&
+                  parseInt(document.getElementById('new-index-count').textContent) !== statsData.newIndexCount) {
+                document.getElementById('new-index-count').textContent = statsData.newIndexCount;
+              }
+
+              generateIndexesBtn.click();
             }
           } catch (statsError) {
             console.error('Stats error:', statsError);
@@ -730,24 +744,144 @@
         }
       }
 
-      // Son kez sorgu sayısını güncelle
+      // Son kez tüm istatistikleri güncelle
       await updateQueryCount();
 
+      // Tarama tamamlandı mesajı
       progressText.textContent = '{{ __('index-analyzer::index-analyzer.scan_completed') }}';
       progressBar.value = totalRoutes;
+
+      // Otomatik olarak generateIndexes butonuna tıkla
+      generateIndexesBtn.click();
+
+      // Önerilen ve mevcut indeksleri güncellemek için isteği tetikle
+      try {
+        // İndeks önerileri oluştur
+        const indexSuggestionsResponse = await fetch(`/${routePrefix}/generate-suggestions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': getCSRFToken(),
+          },
+        });
+
+        if (indexSuggestionsResponse.ok) {
+          const suggestionsData = await indexSuggestionsResponse.json();
+
+          // İndeks sayılarını güncelle
+          if (suggestionsData.existingIndexes && Array.isArray(suggestionsData.existingIndexes)) {
+            document.getElementById('existing-index-count').textContent = suggestionsData.existingIndexes.length;
+          }
+
+          if (suggestionsData.newIndexes && Array.isArray(suggestionsData.newIndexes)) {
+            document.getElementById('new-index-count').textContent = suggestionsData.newIndexes.length;
+          }
+
+          // İndeks bölümlerini göster
+          const existingIndexesSection = document.querySelector('.existing-indexes-section');
+          const newIndexesSection = document.querySelector('.new-indexes-section');
+          const existingIndexesContainer = document.getElementById('existing-indexes');
+          const newIndexesContainer = document.getElementById('new-indexes');
+
+          // Sıfırla
+          existingIndexesContainer.innerHTML = '';
+          newIndexesContainer.innerHTML = '';
+
+          // Var olan ve yeni indeksleri al
+          const existingIndexes = suggestionsData.existingIndexes || [];
+          const newIndexes = suggestionsData.newIndexes || [];
+
+          // Var olan indeksler bölümü
+          if (existingIndexes.length > 0) {
+            existingIndexesSection.style.display = 'block';
+
+            const existingStatementsText = existingIndexes.join('\n');
+            existingIndexesContainer.innerHTML = `<pre>${existingStatementsText}</pre>`;
+
+            // Var olan indeksler için toggle butonu
+            const toggleExistingBtn = document.createElement('button');
+            toggleExistingBtn.className = 'btn btn-sm btn-outline-secondary mt-2';
+            toggleExistingBtn.innerHTML = '<i class="fa fa-eye-slash"></i> {{ __('index-analyzer::index-analyzer.toggle_existing') }}';
+            toggleExistingBtn.addEventListener('click', () => {
+              const pre = existingIndexesContainer.querySelector('pre');
+              if (pre.style.display === 'none') {
+                pre.style.display = 'block';
+                toggleExistingBtn.innerHTML = '<i class="fa fa-eye-slash"></i> {{ __('index-analyzer::index-analyzer.toggle_existing') }}';
+              } else {
+                pre.style.display = 'none';
+                toggleExistingBtn.innerHTML = '<i class="fa fa-eye"></i> {{ __('index-analyzer::index-analyzer.toggle_existing') }}';
+              }
+            });
+            existingIndexesContainer.appendChild(toggleExistingBtn);
+          } else {
+            existingIndexesSection.style.display = 'block';
+            existingIndexesContainer.innerHTML = '<div class="alert alert-info">{{ __('index-analyzer::index-analyzer.no_existing_indexes') }}</div>';
+          }
+
+          // Yeni indeksler bölümü
+          if (newIndexes.length > 0) {
+            newIndexesSection.style.display = 'block';
+
+            const newStatementsText = newIndexes.join('\n');
+            newIndexesContainer.innerHTML = `<pre>${newStatementsText}</pre>`;
+
+            // Yeni indeksler için butonlar
+            const buttonsContainer = document.createElement('div');
+            buttonsContainer.className = 'mt-3';
+
+            // Kopyalama butonu
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'btn btn-primary me-2';
+            copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copy_statements') }}';
+            copyBtn.addEventListener('click', () => {
+              navigator.clipboard.writeText(newStatementsText).then(() => {
+                copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copied') }}';
+                setTimeout(() => {
+                  copyBtn.textContent = '{{ __('index-analyzer::index-analyzer.copy_statements') }}';
+                }, 2000);
+              });
+            });
+            buttonsContainer.appendChild(copyBtn);
+
+            // Toggle butonu
+            const toggleNewBtn = document.createElement('button');
+            toggleNewBtn.className = 'btn btn-sm btn-outline-secondary';
+            toggleNewBtn.innerHTML = '<i class="fa fa-eye-slash"></i> {{ __('index-analyzer::index-analyzer.toggle_new') }}';
+            toggleNewBtn.addEventListener('click', () => {
+              const pre = newIndexesContainer.querySelector('pre');
+              if (pre.style.display === 'none') {
+                pre.style.display = 'block';
+                toggleNewBtn.innerHTML = '<i class="fa fa-eye-slash"></i> {{ __('index-analyzer::index-analyzer.toggle_new') }}';
+              } else {
+                pre.style.display = 'none';
+                toggleNewBtn.innerHTML = '<i class="fa fa-eye"></i> {{ __('index-analyzer::index-analyzer.toggle_new') }}';
+              }
+            });
+            buttonsContainer.appendChild(toggleNewBtn);
+
+            newIndexesContainer.appendChild(buttonsContainer);
+          } else {
+            newIndexesSection.style.display = 'block';
+            newIndexesContainer.innerHTML = '<div class="alert alert-info">{{ __('index-analyzer::index-analyzer.no_new_indexes') }}</div>';
+          }
+        }
+      } catch (error) {
+        console.error('İndeks önerileri oluşturma hatası:', error);
+      }
 
       // Otomatik yenilemeyi durdur
       stopAutoRefresh();
 
-      // 2 saniye sonra modalı kapat
+      // 5 saniye sonra modalı kapat ve sayfayı yenile
+      // Bu generateIndexesBtn'nin tıklanması ve işini yapması için yeterli süre sağlar
       setTimeout(() => {
         routesModal.style.display = 'none';
         // Sayfayı yenile
         window.location.reload();
-      }, 2000);
+      }, 5000);
     }
 
-    // Sorgu sayısını güncelleyen fonksiyon
+    // Tüm istatistikleri güncelleyen fonksiyon
     async function updateQueryCount() {
       try {
         const response = await fetch(`/${routePrefix}/get-stats`, {
@@ -761,12 +895,26 @@
 
         if (response.ok) {
           const data = await response.json();
-          if (data.success && data.queryCount !== undefined) {
+          // Sorgu sayısını güncelle (sadece değişmişse)
+          if (data.success && data.queryCount !== undefined &&
+              parseInt(document.getElementById('query-count').textContent) !== data.queryCount) {
             document.getElementById('query-count').textContent = data.queryCount;
+          }
+
+          // Mevcut indeks sayısını güncelle (sadece değişmişse)
+          if (data.existingIndexCount !== undefined &&
+              parseInt(document.getElementById('existing-index-count').textContent) !== data.existingIndexCount) {
+            document.getElementById('existing-index-count').textContent = data.existingIndexCount;
+          }
+
+          // Yeni indeks sayısını güncelle (sadece değişmişse)
+          if (data.newIndexCount !== undefined &&
+              parseInt(document.getElementById('new-index-count').textContent) !== data.newIndexCount) {
+            document.getElementById('new-index-count').textContent = data.newIndexCount;
           }
         }
       } catch (error) {
-        console.error('Sorgu sayısı güncelleme hatası:', error);
+        console.error('İstatistik güncelleme hatası:', error);
       }
     }
 

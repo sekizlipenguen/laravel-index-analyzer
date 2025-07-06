@@ -206,9 +206,15 @@ class IndexAnalyzerController extends Controller
         $existingSuggestions = [];
         $newSuggestions = [];
 
+        // Sorgular varsa indeks analizini yap
         if (!empty($queries)) {
-            $existingSuggestions = IndexAnalyzer::generateExistingSuggestions();
-            $newSuggestions = IndexAnalyzer::generateSuggestions();
+            try {
+                $existingSuggestions = IndexAnalyzer::generateExistingSuggestions();
+                $newSuggestions = IndexAnalyzer::generateSuggestions();
+            } catch (\Exception $e) {
+                // Hata durumunda boş arrays ile devam et
+                // Bu genellikle henüz indekslenebilir sorgular oluşmadığında oluşabilir
+            }
         }
 
         return response()->json([
