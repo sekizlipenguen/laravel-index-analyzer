@@ -12,7 +12,7 @@
 [![Laravel 11.x](https://img.shields.io/badge/Laravel-11.x-red.svg)](https://laravel.com/docs/11.x)
 [![Laravel 12.x](https://img.shields.io/badge/Laravel-12.x-red.svg)](https://laravel.com/docs/12.x)
 
-[🇬🇧 English](#english) | [🇹🇷 Türkçe](#türkçe)
+[🇬🇧 English](#english) | [🇹🇷 Türkçe](#turkish)
 
 <a name="english"></a>
 
@@ -170,9 +170,19 @@ This package is designed to be used in a development environment. To minimize pe
       }
    ],
    "statements": [
-      "ALTER TABLE `users` ADD INDEX `users_email_status_idx` (`email`,`status`);
+      "ALTER TABLE `users` ADD INDEX `users_email_status_idx` (`email`,`status`);",
+      "ALTER TABLE `orders` ADD INDEX `orders_user_id_created_at_idx` (`user_id`,`created_at`);"
+   ]
+}
+```
 
-## Özellikler
+<a name="turkish"></a>
+
+## 🇹🇷 Türkçe
+
+Laravel tabanlı projelerde gerçek kullanıcı deneyimi (ön yüz gezinmeleri, AJAX istekleri dahil) üzerinden kullanılan tüm SQL sorgularını toplayan, eksik indeksleri tespit eden ve bunlar için SQL önerileri sunan bir paket. Bu sayede veritabanı performansınızı iyileştirebilir ve uygulamanızın daha hızlı çalışmasını sağlayabilirsiniz.
+
+### Özellikler
 
 - Tarayıcı entegrasyonu ile gerçek kullanıcı deneyimini simüle eder
 - Otomatik JS DebugBar ile kolay kullanım
