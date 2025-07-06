@@ -13,7 +13,7 @@ Laravel tabanlı projelerde kullanılan tüm SQL sorgularını gerçek kullanıc
 - Önerilen indeksler için hazır SQL komutları sunar
 - Aynı sorguların tekrar analiz edilmesini önleyen akıllı önbellek sistemi
 - Kolay yapılandırma (.env ve config dosyası ile)
-- Minimum sistem kaynağı kullanımı (production ortamında devre dışı kalır)
+- Minimum sistem kaynağı kullanımı
 
 ## Kurulum
 
@@ -35,7 +35,7 @@ php artisan vendor:publish --provider="SekizliPenguen\IndexAnalyzer\IndexAnalyze
 INDEX_ANALYZER_ENABLED=true
 ```
 
-2. Uygulamanızda geliştirme ortamında kullanmanız önerilir. Production ortamında otomatik olarak devre dışı kalacaktır.
+2. Uygulamanızda geliştirme ortamında kullanmanız önerilir. Production ortamında kullanırken bu ayarı false yapmanız tavsiye edilir.
 
 3. İki kullanım seçeneği vardır:
 
@@ -87,7 +87,7 @@ INDEX_ANALYZER_ENABLED=true
 
 ```php
 return [
-    // IndexAnalyzer'ı aktif/pasif yapma
+    // IndexAnalyzer'ı aktif/pasif yapma (üretim ortamında false yapmanız önerilir)
     'enabled' => env('INDEX_ANALYZER_ENABLED', false),
 
     // Sorgu verilerinin depolanma yöntemi (memory veya file)
@@ -125,10 +125,10 @@ return [
 
 Bu paket, geliştirme ortamında kullanılmak üzere tasarlanmıştır. Performans etkisini minimize etmek için:
 
-- Production ortamında otomatik olarak devre dışı kalır
 - Aynı sorguları tekrar kaydetmemek için akıllı önbellek kullanır
 - İhtiyaç duyulmadığında sistem kaynağı tüketmez
 - Dosya depolaması seçeneği, bellek kullanımını azaltır
+- Production ortamında kullanım önerilmez, kullanılacaksa `.env` dosyasında `INDEX_ANALYZER_ENABLED=false` ayarı yapılmalıdır
 
 ## Örnekler
 
