@@ -266,7 +266,7 @@
         <div class="mt-3">
             <button id="refreshQueriesBtn" class="btn btn-sm btn-secondary">
                 <i class="fa fa-refresh"></i>
-                Sorguları Yenile
+                {{ __('index-analyzer::index-analyzer.refresh_queries') }}
             </button>
         </div>
     </div>
