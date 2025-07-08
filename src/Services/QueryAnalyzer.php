@@ -1409,6 +1409,31 @@ class QueryAnalyzer
             return false;
         }
 
+        // Subquery tabloları için indeks önerisi oluşturma
+        if (str_starts_with($table, 'subquery_')) {
+            return false;
+        }
+
+        // Tablonun gerçekten var olup olmadığını kontrol et
+        try {
+            DB::connection()->getSchemaBuilder()->hasTable($table);
+        } catch (\Exception $e) {
+            // Tablo bulunamadıysa veya başka bir hata oluştuysa indeks önerme
+            return false;
+        }
+
+        // Tüm sütunların gerçekten var olup olmadığını kontrol et
+        foreach ($columns as $column) {
+            try {
+                if (!DB::connection()->getSchemaBuilder()->hasColumn($table, $column)) {
+                    return false;
+                }
+            } catch (\Exception $e) {
+                // Sütun bulunamadıysa veya başka bir hata oluştuysa indeks önerme
+                return false;
+            }
+        }
+
         $existingIndexes = $this->getTableIndexes($table);
 
         // Check if any existing index covers these columns

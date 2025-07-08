@@ -71,11 +71,15 @@ class IndexAnalyzer
         $statements = [];
 
         foreach ($suggestions as $suggestion) {
-            $statements[] = $this->buildAddIndexStatement(
+            $statement = $this->buildAddIndexStatement(
                 $suggestion['table'],
                 $suggestion['columns'],
                 $suggestion['index_name'] ?? null
             );
+
+            if ($statement !== null) {
+                $statements[] = $statement;
+            }
         }
 
         return $statements;
@@ -93,11 +97,15 @@ class IndexAnalyzer
         $statements = [];
 
         foreach ($existingSuggestions as $suggestion) {
-            $statements[] = $this->buildAddIndexStatement(
+            $statement = $this->buildAddIndexStatement(
                 $suggestion['table'],
                 $suggestion['columns'],
                 $suggestion['index_name'] ?? null
             );
+
+            if ($statement !== null) {
+                $statements[] = $statement;
+            }
         }
 
         return $statements;
@@ -135,6 +143,41 @@ class IndexAnalyzer
      */
     protected function buildAddIndexStatement($table, $columns, $indexName = null)
     {
+        // Alt sorgular (subquery) için indeks ifadesi oluşturma
+        if (strpos($table, 'subquery_') === 0) {
+            return null;
+        }
+
+        // Tablonun gerçekten var olup olmadığını kontrol et
+        try {
+            if (!DB::connection()->getSchemaBuilder()->hasTable($table)) {
+                return null;
+            }
+        } catch (\Exception $e) {
+            return null;
+        }
+
+        // Tüm sütunların gerçekten var olup olmadığını kontrol et
+        foreach ($columns as $key => $column) {
+            try {
+                if (!DB::connection()->getSchemaBuilder()->hasColumn($table, $column)) {
+                    // Geçersiz sütunları listeden çıkar
+                    unset($columns[$key]);
+                }
+            } catch (\Exception $e) {
+                // Hata durumunda sütunu listeden çıkar
+                unset($columns[$key]);
+            }
+        }
+
+        // Eğer hiç geçerli sütun kalmadıysa, indeks oluşturma
+        if (empty($columns)) {
+            return null;
+        }
+
+        // Sütun dizisini yeniden indeksle
+        $columns = array_values($columns);
+
         $indexName = $indexName ?: $table . '_' . implode('_', $columns) . '_idx';
         $columnList = implode(',', array_map(function ($column) {
             return "`{$column}`";
