@@ -213,6 +213,31 @@
             font-weight: 600;
             color: #495057;
         }
+
+        #execution-list .list-group-item {
+            border-left: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        #execution-list .list-group-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        #execution-list .list-group-item .fa-check-circle {
+            color: #28a745;
+        }
+
+        #execution-list .list-group-item .fa-times-circle {
+            color: #dc3545;
+        }
+
+        #execution-list .list-group-item.success {
+            border-left-color: #28a745;
+        }
+
+        #execution-list .list-group-item.error {
+            border-left-color: #dc3545;
+        }
     </style>
     <!-- Bootstrap CSS ve JS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -322,6 +347,14 @@
                     <i class="fa fa-plus-circle text-primary me-2"></i>{{ __('index-analyzer::index-analyzer.new_indexes') }}</h4>
                 <p>{{ __('index-analyzer::index-analyzer.new_indexes_desc') }}</p>
                 <div id="new-indexes"></div>
+            </div>
+
+            <div class="execution-results-section" style="display: none;">
+                <h4>
+                    <i class="fa fa-code text-warning me-2"></i>{{ __('index-analyzer::index-analyzer.execution_results') }}</h4>
+                <div id="execution-results">
+                    <ul class="list-group" id="execution-list"></ul>
+                </div>
             </div>
 
             <div id="results"></div>
@@ -573,6 +606,15 @@
               });
               buttonsContainer.appendChild(copyBtn);
 
+              // Uygulama butonu
+              const executeBtn = document.createElement('button');
+              executeBtn.className = 'btn btn-success me-2';
+              executeBtn.textContent = '{{ __('index-analyzer::index-analyzer.execute_all') }}';
+              executeBtn.addEventListener('click', () => {
+                executeStatements(newIndexes);
+              });
+              buttonsContainer.appendChild(executeBtn);
+
               // Toggle butonu
               const toggleNewBtn = document.createElement('button');
               toggleNewBtn.className = 'btn btn-sm btn-outline-secondary';
@@ -588,6 +630,9 @@
                 }
               });
               buttonsContainer.appendChild(toggleNewBtn);
+
+              // Butonlar container'ını indeksler container'ına ekle
+              newIndexesContainer.appendChild(buttonsContainer);
 
               newIndexesContainer.appendChild(buttonsContainer);
             } else {
@@ -852,6 +897,15 @@
             });
             buttonsContainer.appendChild(copyBtn);
 
+            // Uygulama butonu
+            const executeBtn = document.createElement('button');
+            executeBtn.className = 'btn btn-success me-2';
+            executeBtn.textContent = '{{ __('index-analyzer::index-analyzer.execute_all') }}';
+            executeBtn.addEventListener('click', () => {
+              executeStatements(newIndexes);
+            });
+            buttonsContainer.appendChild(executeBtn);
+
             // Toggle butonu
             const toggleNewBtn = document.createElement('button');
             toggleNewBtn.className = 'btn btn-sm btn-outline-secondary';
@@ -974,6 +1028,68 @@
 
         iframe.src = url;
       });
+    }
+
+    // SQL ifadelerini veritabanında çalıştır ve sonuçları göster
+    async function executeStatements(statements) {
+      if (!statements || statements.length === 0) {
+        alert('Uygulanacak ifade bulunamadı!');
+        return;
+      }
+
+      try {
+        // Sonuç bölümünü göster
+        const resultsSection = document.querySelector('.execution-results-section');
+        resultsSection.style.display = 'block';
+
+        // Sonuç listesini temizle ve başlangıç durumunu göster
+        const executionList = document.getElementById('execution-list');
+        executionList.innerHTML = '<li class="list-group-item"><i class="fa fa-spinner fa-spin me-2"></i> {{ __('index-analyzer::index-analyzer.executing') }}</li>';
+
+        // CSRF token'ı al
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        // SQL ifadelerini sunucuya gönder
+        const response = await fetch(`/${routePrefix}/execute-statements`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+          },
+          body: JSON.stringify({
+            statements: statements,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Sonuç listesini temizle
+          executionList.innerHTML = '';
+
+          // Her SQL ifadesi için sonucu göster
+          data.results.forEach(result => {
+            const listItem = document.createElement('li');
+            listItem.className = 'list-group-item';
+
+            // Başarı durumuna göre simge ekle
+            if (result.success) {
+              listItem.innerHTML = `<i class="fa fa-check-circle text-success me-2"></i> <strong>${result.statement}</strong><br><small class="text-success">${result.message}</small>`;
+            } else {
+              listItem.innerHTML = `<i class="fa fa-times-circle text-danger me-2"></i> <strong>${result.statement}</strong><br><small class="text-danger">${result.message}</small>`;
+            }
+
+            executionList.appendChild(listItem);
+          });
+        } else {
+          // Hata mesajını göster
+          executionList.innerHTML = `<li class="list-group-item"><i class="fa fa-exclamation-triangle text-danger me-2"></i> ${data.message}</li>`;
+        }
+      } catch (error) {
+        console.error('SQL ifadelerini çalıştırma hatası:', error);
+        const executionList = document.getElementById('execution-list');
+        executionList.innerHTML = `<li class="list-group-item"><i class="fa fa-exclamation-triangle text-danger me-2"></i> Hata: ${error.message}</li>`;
+      }
     }
   });
 </script>

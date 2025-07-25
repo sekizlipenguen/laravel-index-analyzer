@@ -81,6 +81,17 @@ return [
     'suggested_for' => 'Suggested for:',
     'create_all_new' => 'Create All New Indexes',
     'create_selected' => 'Create Selected Indexes',
+    'execute_all' => 'Execute All Statements',
+    'executing' => 'Executing...',
+    'execution_success' => 'Successfully executed',
+    'execution_failed' => 'Execution failed',
+    'statements_executed' => 'Statements executed',
+    'execution_results' => 'Execution Results',
+    'no_statements_to_execute' => 'No statements to execute',
+    'error_executing' => 'Error executing statements',
+    'applying_statements' => 'Applying index statements...',
+    'statements_applied' => 'Statements have been applied',
+    'apply_statements' => 'Apply Statements',
 
     // Debug
     'debug_info' => 'Debug Information',

@@ -1,33 +1,33 @@
 <?php
 
 return [
-    // Genel
-    'title' => 'İndeks Analizörü',
+    // General
+    'title' => 'İndeks Analiz Aracı',
     'description' => 'SQL sorgularınızı analiz edin ve indeks önerileri alın',
 
-    // Navigasyon
-    'dashboard' => 'Kontrol Paneli',
-    'scan' => 'Tarama',
+    // Navbar
+    'dashboard' => 'Gösterge Paneli',
+    'scan' => 'Tara',
     'suggestions' => 'Öneriler',
     'settings' => 'Ayarlar',
     'language' => 'Dil',
 
-    // Aksiyonlar
-    'start_scan' => 'Tarama Başlat',
+    // Actions
+    'start_scan' => 'Taramayı Başlat',
     'extract_indexes' => 'İndeksleri Çıkar',
     'clear_queries' => 'Tüm Sorguları Temizle',
-    'clear_all' => 'Temizle',
+    'clear_all' => 'Hepsini Temizle',
     'refresh_queries' => 'Sorguları Yenile',
-    'copy_statements' => 'SQL Komutlarını Kopyala',
+    'copy_statements' => 'SQL Cümlelerini Kopyala',
     'show' => 'Göster',
     'hide' => 'Gizle',
 
-    // Mesajlar
-    'crawling_started' => 'Tarama başlatıldı',
-    'no_queries_recorded' => 'Hiç sorgu kaydedilmemiş. Lütfen önce tarama yapın.',
+    // Messages
+    'crawling_started' => 'Taramaya başlandı',
+    'no_queries_recorded' => 'Herhangi bir sorgu kaydedilmedi. Lütfen önce tarama yapın.',
     'queries_cleared' => 'Tüm sorgular temizlendi',
     'query_recorded' => 'Sorgu kaydedildi',
-    'confirm_clear_queries' => 'Tüm kaydedilen sorguları temizlemek istediğinize emin misiniz?',
+    'confirm_clear_queries' => 'Tüm kaydedilmiş sorguları silmek istediğinize emin misiniz?',
     'scanning' => 'Taranıyor',
     'pages' => 'sayfa',
     'scan_completed' => 'Tarama tamamlandı!',
@@ -36,59 +36,65 @@ return [
     'refreshing_queries' => 'Sorgular yenileniyor...',
     'queries_refreshed' => 'Sorgular yenilendi',
     'generating_suggestions' => 'İndeks önerileri oluşturuluyor...',
-    'no_suggestions' => 'Önerilen indeks bulunamadı.',
+    'no_suggestions' => 'Herhangi bir indeks önerisi bulunamadı.',
     'error' => 'Hata',
     'unknown_error' => 'Bilinmeyen hata',
-    'stats_refresh_error' => 'İstatistik yenileme hatası',
+    'stats_refresh_error' => 'İstatistik güncelleme hatası',
     'generating_index_suggestions' => 'İndeks önerileri oluşturuluyor...',
 
-    // Kontrol Paneli
+    // Dashboard
     'total_queries' => 'Toplam Sorgu',
-    'total_suggestions' => 'Öneriler',
+    'total_suggestions' => 'Öneri',
     'total_existing_indexes' => 'Mevcut İndeksler',
-    'total_new_indexes' => 'Önerilen İndeksler',
+    'total_new_indexes' => 'Yeni İndeksler',
     'scanned_routes' => 'Taranan Rotalar',
     'slow_queries' => 'Yavaş Sorgular',
     'time_ms' => 'Süre (ms)',
     'date' => 'Tarih',
-    'suggestions_hint' => 'İndeks önerilerini görmek için önce bir tarama yapın ve ardından "İndeksleri Çıkar" butonuna tıklayın.',
+    'suggestions_hint' => 'İndeks önerilerini görmek için önce tarama yapın ve ardından "İndeksleri Çıkar" butonuna tıklayın.',
     'routes_to_scan' => 'Taranacak Rotalar',
-    'routes_to_scan_desc' => 'Aşağıdaki rotalar otomatik olarak taranacak ve SQL sorguları kaydedilecek:',
+    'routes_to_scan_desc' => 'Aşağıdaki rotalar otomatik olarak taranacak ve SQL sorguları kaydedilecektir:',
 
-    // Öneriler
+    // Suggestions
     'table' => 'Tablo',
     'columns' => 'Sütunlar',
     'index_name' => 'İndeks Adı',
-    'statements' => 'SQL Komutları',
+    'statements' => 'SQL Cümleleri',
     'apply_to_database' => 'Veritabanına Uygula',
-    'copied' => 'Kopyalandı!',
+    'copied' => 'Panoya kopyalandı!',
     'existing_indexes' => 'Mevcut İndeksler',
     'new_indexes' => 'Önerilen Yeni İndeksler',
     'no_existing_indexes' => 'Önerilen sütunlar için mevcut indeks bulunamadı.',
     'no_new_indexes' => 'Yeni indeks önerisi bulunamadı.',
     'all_indexes_exist' => 'Tüm önerilen indeksler zaten veritabanında mevcut.',
-    'toggle_existing' => 'Mevcut İndeksleri Göster/Gizle',
-    'toggle_new' => 'Yeni Önerileri Göster/Gizle',
+    'toggle_existing' => 'Mevcut İndeksleri Göster veya Gizle',
+    'toggle_new' => 'Yeni Önerilenleri Göster veya Gizle',
     'status' => 'Durum',
-    'already_exists' => 'Zaten Mevcut',
+    'already_exists' => 'Veritabanında mevcut',
     'new' => 'Yeni',
     'suggested_indexes' => 'Önerilen İndeksler',
-    'existing_indexes_desc' => 'Aşağıdaki indeksler zaten veritabanınızda bulunmaktadır:',
+    'existing_indexes_desc' => 'Aşağıdaki indeksler veritabanınızda zaten mevcut:',
     'new_indexes_desc' => 'Aşağıdaki indekslerin eklenmesi önerilmektedir:',
     'index_exists' => 'İndeks Mevcut',
-    'index_new' => 'Yeni İndeks',
+    'index_new' => 'Yeni oluşturulacak indeks',
     'index_status' => 'İndeks Durumu',
-    'suggested_for' => 'Şunun için önerildi:',
+    'suggested_for' => 'Önerildiği kullanım:',
     'create_all_new' => 'Tüm Yeni İndeksleri Oluştur',
-    'create_selected' => 'Seçili İndeksleri Oluştur',
+    'create_selected' => 'Seçilen İndeksleri Oluştur',
+    'execute_all' => 'Tüm Cümleleri Uygula',
+    'executing' => 'Uygulanıyor...',
+    'execution_success' => 'Başarıyla uygulandı',
+    'execution_failed' => 'Uygulama başarısız',
+    'statements_executed' => 'Cümleler uygulandı',
+    'execution_results' => 'Uygulama Sonuçları',
+    'no_statements_to_execute' => 'Uygulanacak cümle yok',
+    'error_executing' => 'Cümleler uygulanırken hata oluştu',
+    'applying_statements' => 'İndeks cümleleri uygulanıyor...',
+    'statements_applied' => 'Cümleler uygulandı',
+    'apply_statements' => 'Cümleleri Uygula',
 
-    // Hata Ayıklama
+    // Debug
     'debug_info' => 'Hata Ayıklama Bilgisi',
     'query_count' => 'Sorgu Sayısı',
     'sample_queries' => 'Örnek Sorgular',
-    'page' => 'sayfa',
-    'scan_started' => 'Tarama başlatıldı',
-    'query_count_update_error' => 'Sorgu sayısı güncelleme hatası',
-    'fetch_error' => 'Fetch hatası',
-    'stats_refresh_error' => 'İstatistik yenileme hatası'
 ];

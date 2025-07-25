@@ -224,4 +224,55 @@ class IndexAnalyzerController extends Controller
             'newIndexCount' => count($newSuggestions)
         ]);
     }
+
+    /**
+     * SQL ifadelerini veritabanında çalıştır.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function executeStatements(Request $request)
+    {
+        // Dil seçeneğini al ve uygula
+        $locale = $request->get('locale', config('language.default_locale', 'en'));
+        App::setLocale($locale);
+
+        $statements = $request->input('statements', []);
+        $results = [];
+
+        if (empty($statements)) {
+            return response()->json([
+                'success' => false,
+                'message' => __('index-analyzer::index-analyzer.no_statements_to_execute'),
+                'results' => []
+            ]);
+        }
+
+        foreach ($statements as $statement) {
+            try {
+                // SQL ifadesini çalıştır
+                \DB::statement($statement);
+
+                // Başarılı sonuç ekle
+                $results[] = [
+                    'statement' => $statement,
+                    'success' => true,
+                    'message' => __('index-analyzer::index-analyzer.execution_success')
+                ];
+            } catch (\Exception $e) {
+                // Hata durumunda
+                $results[] = [
+                    'statement' => $statement,
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => __('index-analyzer::index-analyzer.statements_executed'),
+            'results' => $results
+        ]);
+    }
 }

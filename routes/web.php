@@ -32,6 +32,9 @@ Route::group([
     Route::get('/get-stats', [IndexAnalyzerController::class, 'getStats'])
         ->name('index-analyzer.get-stats');
 
+    Route::post('/execute-statements', [IndexAnalyzerController::class, 'executeStatements'])
+        ->name('index-analyzer.execute-statements');
+
     // Dil değiştirme rotaları - tüm yolları destekle
     Route::get('/languages', [LanguageController::class, 'getSupportedLanguages'])
         ->name('index-analyzer.languages');
