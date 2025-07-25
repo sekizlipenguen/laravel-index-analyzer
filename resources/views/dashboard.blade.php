@@ -698,6 +698,14 @@
           // Sayfayı iframe'de yükle
           await loadPageInIframe(route);
 
+          // Rotanın yanına işaret ekle
+          const routeItems = routesList.querySelectorAll('div');
+          routeItems.forEach(item => {
+            if (item.textContent === route || item.textContent === '✅ ' + route) {
+              item.innerHTML = '✅ ' + route;
+            }
+          });
+
           // Sorgu sayısını güncelle
           await updateQueryCount();
 
@@ -948,7 +956,7 @@
           setTimeout(() => {
             document.body.removeChild(iframe);
             resolve();
-          }, 2000);
+          }, 1500);
         });
 
         iframe.addEventListener('error', () => {
