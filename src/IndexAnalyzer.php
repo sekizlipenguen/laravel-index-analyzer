@@ -12,28 +12,28 @@ class IndexAnalyzer
     /**
      * Uygulama örneği.
      *
-     * @var \Illuminate\Foundation\Application
+     * @var Application
      */
     protected $app;
 
     /**
      * Sorgu günlükleyici örneği.
      *
-     * @var \SekizliPenguen\IndexAnalyzer\Services\QueryLogger
+     * @var QueryLogger
      */
     protected $queryLogger;
 
     /**
      * Sorgu analizci örneği.
      *
-     * @var \SekizliPenguen\IndexAnalyzer\Services\QueryAnalyzer
+     * @var QueryAnalyzer
      */
     protected $queryAnalyzer;
 
     /**
      * Yeni bir indeks analizci örneği oluştur.
      *
-     * @param \Illuminate\Foundation\Application $app
+     * @param Application $app
      * @return void
      */
     public function __construct(Application $app)
@@ -148,6 +148,9 @@ class IndexAnalyzer
             return null;
         }
 
+        // İndeks ismi uzunluğunu kontrol et - MySQL'de maksimum 64 karakter
+        $maxIndexNameLength = 64;
+
         // Tablonun gerçekten var olup olmadığını kontrol et
         try {
             if (!DB::connection()->getSchemaBuilder()->hasTable($table)) {
@@ -178,7 +181,25 @@ class IndexAnalyzer
         // Sütun dizisini yeniden indeksle
         $columns = array_values($columns);
 
-        $indexName = $indexName ?: $table . '_' . implode('_', $columns) . '_idx';
+        // İndeks ismini oluştur
+        if (!$indexName) {
+            // QueryAnalyzer'daki generateIndexName metodunu kullan - bu zaten optimize edilmiş
+            $indexName = $this->queryAnalyzer->generateIndexName($table, $columns);
+
+            // Son bir kontrol
+            if (strlen($indexName) > $maxIndexNameLength) {
+                // En son çare - gerçekten çok uzunsa, tablo adını kısalt ve tamamen hash kullan
+                $shortTableName = strlen($table) > 10 ? substr($table, 0, 10) : $table;
+                $hash = substr(md5(implode('_', $columns)), 0, 15);
+                $indexName = $shortTableName . '_' . $hash . '_idx';
+
+                // Yine de uzunsa en sonunda sadece kırp
+                if (strlen($indexName) > $maxIndexNameLength) {
+                    $indexName = substr($indexName, 0, $maxIndexNameLength - 1);
+                }
+            }
+        }
+
         $columnList = implode(',', array_map(function ($column) {
             return "`{$column}`";
         }, $columns));
@@ -189,10 +210,20 @@ class IndexAnalyzer
     /**
      * Sorgu günlükleyici örneğini al.
      *
-     * @return \SekizliPenguen\IndexAnalyzer\Services\QueryLogger
+     * @return QueryLogger
      */
     public function getQueryLogger()
     {
         return $this->queryLogger;
+    }
+
+    /**
+     * Sorgu analizci örneğini al.
+     *
+     * @return QueryAnalyzer
+     */
+    public function getQueryAnalyzer()
+    {
+        return $this->queryAnalyzer;
     }
 }

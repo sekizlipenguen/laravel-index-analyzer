@@ -195,6 +195,28 @@
                 background: #444;
             }
 
+            .ia-warning {
+                margin-bottom: 10px;
+                padding: 8px 12px;
+                background-color: #fff3cd;
+                color: #856404;
+                border-radius: 4px;
+                border-left: 4px solid #ffc107;
+                font-size: 14px;
+                line-height: 1.5;
+            }
+
+            .ia-theme-dark .ia-warning {
+                background-color: #3a3a2c;
+                color: #ffe484;
+                border-left-color: #ffc107;
+            }
+
+            .ia-warning-icon {
+                margin-right: 6px;
+                font-style: normal;
+            }
+
             .ia-copy-btn {
                 background: #4a6cf7;
                 color: white;
@@ -290,6 +312,14 @@
               const statementsText = data.statements.join('\n');
               resultsElement.textContent = statementsText;
               resultsElement.style.display = 'block';
+
+              // İndeks isimlerinin kısaltıldığına dair uyarı mesajı ekle
+              if (data.message) {
+                const warningDiv = document.createElement('div');
+                warningDiv.className = 'ia-warning';
+                warningDiv.innerHTML = `<i class="ia-warning-icon">⚠️</i> ${data.message}`;
+                resultsElement.insertBefore(warningDiv, resultsElement.firstChild);
+              }
 
               // Add copy button
               const copyBtn = document.createElement('button');

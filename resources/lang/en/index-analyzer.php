@@ -30,8 +30,10 @@ return [
     'confirm_clear_queries' => 'Are you sure you want to clear all recorded queries?',
     'scanning' => 'Scanning',
     'pages' => 'pages',
+    'page' => 'page',
     'scan_completed' => 'Scan completed!',
     'scan_starting' => 'Scan starting...',
+    'scan_started' => 'Scan started',
     'ready' => 'Ready',
     'refreshing_queries' => 'Refreshing queries...',
     'queries_refreshed' => 'Queries refreshed',
@@ -41,6 +43,7 @@ return [
     'unknown_error' => 'Unknown error',
     'stats_refresh_error' => 'Statistics refresh error',
     'generating_index_suggestions' => 'Generating index suggestions...',
+    'fetch_error' => 'Page loading error',
 
     // Dashboard
     'total_queries' => 'Total Queries',
@@ -97,4 +100,5 @@ return [
     'debug_info' => 'Debug Information',
     'query_count' => 'Query Count',
     'sample_queries' => 'Sample Queries',
+    'long_index_warning' => 'Some index names have been shortened due to MySQL\'s 64 character limit',
 ];

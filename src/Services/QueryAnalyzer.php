@@ -1592,7 +1592,7 @@ class QueryAnalyzer
         });
     }
 
-    protected function generateIndexName($table, array $columns)
+    public function generateIndexName($table, array $columns)
     {
         return $table . '_' . implode('_', $columns) . '_idx';
     }

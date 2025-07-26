@@ -30,8 +30,10 @@ return [
     'confirm_clear_queries' => 'Tüm kaydedilmiş sorguları silmek istediğinize emin misiniz?',
     'scanning' => 'Taranıyor',
     'pages' => 'sayfa',
+    'page' => 'sayfa',
     'scan_completed' => 'Tarama tamamlandı!',
     'scan_starting' => 'Tarama başlatılıyor...',
+    'scan_started' => 'Tarama başlatıldı',
     'ready' => 'Hazır',
     'refreshing_queries' => 'Sorgular yenileniyor...',
     'queries_refreshed' => 'Sorgular yenilendi',
@@ -41,6 +43,7 @@ return [
     'unknown_error' => 'Bilinmeyen hata',
     'stats_refresh_error' => 'İstatistik güncelleme hatası',
     'generating_index_suggestions' => 'İndeks önerileri oluşturuluyor...',
+    'fetch_error' => 'Sayfa yükleme hatası',
 
     // Dashboard
     'total_queries' => 'Toplam Sorgu',
