@@ -155,9 +155,6 @@ class IndexAnalyzer
             return null;
         }
 
-        // İndeks ismi uzunluğunu kontrol et - MySQL'de maksimum 64 karakter
-        $maxIndexNameLength = 64;
-
         // Tablonun gerçekten var olup olmadığını kontrol et
         try {
             if (!DB::connection()->getSchemaBuilder()->hasTable($table)) {
@@ -192,18 +189,7 @@ class IndexAnalyzer
         if (!$indexName) {
             // QueryAnalyzer'daki generateIndexName metodunu kullan - bu zaten optimize edilmiş
             $indexName = $this->queryAnalyzer->generateIndexName($table, $columns);
-            // Son bir kontrol
-            if (strlen($indexName) > $maxIndexNameLength) {
-                // En son çare - gerçekten çok uzunsa, tablo adını kısalt ve tamamen hash kullan
-                $shortTableName = strlen($table) > 10 ? substr($table, 0, 10) : $table;
-                $hash = substr(md5(implode('_', $columns)), 0, 15);
-                $indexName = $shortTableName . '_' . $hash . '_idx';
 
-                // Yine de uzunsa en sonunda sadece kırp
-                if (strlen($indexName) > $maxIndexNameLength) {
-                    $indexName = substr($indexName, 0, $maxIndexNameLength - 1);
-                }
-            }
         }
 
         $columnList = implode(',', array_map(function ($column) {

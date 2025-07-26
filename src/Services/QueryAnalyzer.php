@@ -1606,6 +1606,22 @@ class QueryAnalyzer
 
     public function generateIndexName($table, array $columns)
     {
-        return $table . '_' . implode('_', $columns) . '_idx';
+        // İndeks ismi uzunluğunu kontrol et - MySQL'de maksimum 64 karakter
+        $maxIndexNameLength = 64;
+
+        $indexName = $table . '_' . implode('_', $columns) . '_idx';
+        if (strlen($indexName) > $maxIndexNameLength) {
+            // En son çare - gerçekten çok uzunsa, tablo adını kısalt ve tamamen hash kullan
+            $shortTableName = strlen($table) > 10 ? substr($table, 0, 10) : $table;
+            $hash = substr(md5(implode('_', $columns)), 0, 15);
+            $indexName = $shortTableName . '_' . $hash . '_idx';
+
+            // Yine de uzunsa en sonunda sadece kırp
+            if (strlen($indexName) > $maxIndexNameLength) {
+                $indexName = substr($indexName, 0, $maxIndexNameLength - 1);
+            }
+        }
+        return $indexName;
+
     }
 }
