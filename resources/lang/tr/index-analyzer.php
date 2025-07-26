@@ -96,8 +96,9 @@ return [
     'statements_applied' => 'Cümleler uygulandı',
     'apply_statements' => 'Cümleleri Uygula',
 
-    // Debug
+    // Hata Ayıklama
     'debug_info' => 'Hata Ayıklama Bilgisi',
     'query_count' => 'Sorgu Sayısı',
     'sample_queries' => 'Örnek Sorgular',
+    'long_index_warning' => 'Bazı indeks adları, MySQL\'in 64 karakterlik sınırı nedeniyle kısaltılmıştır',
 ];

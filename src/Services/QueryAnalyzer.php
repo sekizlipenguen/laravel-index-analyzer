@@ -135,13 +135,19 @@ class QueryAnalyzer
                 continue;
             }
 
+            // Orijinal indeks adını oluştur
+            $originalIndexName = $group['table'] . '_' . implode('_', $group['columns']) . '_idx';
+            // Optimize edilmiş indeks adını oluştur
+            $optimizedIndexName = $this->generateIndexName($group['table'], $group['columns']);
+
             // Öneriyi ekle
             $suggestions[] = [
                 'table' => $group['table'],
                 'columns' => $group['columns'],
                 'query_count' => $group['count'],
                 'avg_time' => $group['total_time'] / $group['count'],
-                'index_name' => $this->generateIndexName($group['table'], $group['columns']),
+                'index_name' => $optimizedIndexName,
+                'original_index_name' => $originalIndexName,
                 'join_related' => $group['join_related'] ?? false,
                 'query_type' => $group['query_type'] ?? 'SELECT',
             ];
@@ -808,13 +814,19 @@ class QueryAnalyzer
                 continue; // Bu index henüz yok, atla
             }
 
+            // Orijinal indeks adını oluştur
+            $originalIndexName = $group['table'] . '_' . implode('_', $group['columns']) . '_idx';
+            // Optimize edilmiş indeks adını oluştur
+            $optimizedIndexName = $this->generateIndexName($group['table'], $group['columns']);
+
             // Var olan indeksi ekle
             $existingSuggestions[] = [
                 'table' => $group['table'],
                 'columns' => $group['columns'],
                 'query_count' => $group['count'],
                 'avg_time' => $group['total_time'] / $group['count'],
-                'index_name' => $this->generateIndexName($group['table'], $group['columns']),
+                'index_name' => $optimizedIndexName,
+                'original_index_name' => $originalIndexName,
                 'join_related' => $group['join_related'] ?? false,
                 'query_type' => $group['query_type'] ?? 'SELECT',
                 'existing' => true, // Bu indeks zaten var

@@ -69,12 +69,19 @@ class IndexAnalyzer
         $suggestions = $this->generateSuggestions();
 
         $statements = [];
-
         foreach ($suggestions as $suggestion) {
+            // Indeks adı maksimum uzunluk kontrolü
+            $indexName = $suggestion['index_name'] ?? null;
+            if ($indexName && strlen($indexName) > 64) {
+                $table = $suggestion['table'];
+                $columns = $suggestion['columns'];
+                $indexName = $this->queryAnalyzer->generateIndexName($table, $columns);
+            }
+
             $statement = $this->buildAddIndexStatement(
                 $suggestion['table'],
                 $suggestion['columns'],
-                $suggestion['index_name'] ?? null
+                $indexName
             );
 
             if ($statement !== null) {
@@ -185,7 +192,6 @@ class IndexAnalyzer
         if (!$indexName) {
             // QueryAnalyzer'daki generateIndexName metodunu kullan - bu zaten optimize edilmiş
             $indexName = $this->queryAnalyzer->generateIndexName($table, $columns);
-
             // Son bir kontrol
             if (strlen($indexName) > $maxIndexNameLength) {
                 // En son çare - gerçekten çok uzunsa, tablo adını kısalt ve tamamen hash kullan

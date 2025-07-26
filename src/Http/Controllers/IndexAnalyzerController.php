@@ -115,6 +115,16 @@ class IndexAnalyzerController extends Controller
         $existingSuggestions = IndexAnalyzer::generateExistingSuggestions();
         $existingStatements = IndexAnalyzer::generateExistingIndexStatements();
 
+        // Uzun indeks isimleri için uyarı mesajı oluştur
+        $longIndexWarning = null;
+        foreach ($suggestions as $suggestion) {
+            if (isset($suggestion['original_index_name']) &&
+                $suggestion['original_index_name'] != $suggestion['index_name']) {
+                $longIndexWarning = __('index-analyzer::index-analyzer.long_index_warning');
+                break;
+            }
+        }
+
         return response()->json([
             'success' => true,
             'suggestions' => $suggestions,
@@ -122,6 +132,7 @@ class IndexAnalyzerController extends Controller
             'existingSuggestions' => $existingSuggestions,
             'existingIndexes' => $existingStatements,
             'newIndexes' => $statements,
+            'message' => $longIndexWarning,
             'debug' => [
                 'query_count' => count($queries),
                 'queries' => array_slice($queries, 0, 10) // İlk 10 sorguyu göster
